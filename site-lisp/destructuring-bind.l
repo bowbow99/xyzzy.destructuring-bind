@@ -71,6 +71,11 @@
 
 (defparameter *lambda-list* nil)
 
+(defparameter *max-length* nil)
+(defparameter *min-length* nil)
+(defparameter *rest-var* nil)
+(defparameter *known-keys* nil)
+
 (defun parse-lambda-list (lambda-list form)
   (declare (type list lambda-list))
   (multiple-value-bind (whole-var lambda-list)
@@ -82,8 +87,8 @@
           (tail  whole-var)
           (state '&required)
           (rest-var nil)
-          (min-length 0)
-          (max-length 0))
+          (*min-length* 0)
+          (*max-length* 0))
       (progn
         (do ((lambda-list lambda-list (cdr lambda-list)))
             ((null lambda-list))
@@ -115,21 +120,16 @@
                      (setq lambda-list (list* nil '&rest (gensym "all-keyargs-") lambda-list))))
                   ((&allow-other-keys))
                   ((&aux)))
-                (multiple-value-bind (vars% forms% tail% min+ max+)
+                (multiple-value-bind (vars% forms% tail%)
                     (funcall (or (cdr (assoc state *state/parser-alist*))
                                  (error "No parser found for state `~S'."
                                         state))
                              x tail)
                   (setq vars  (append vars vars%)
                         forms (append forms forms%)
-                        tail  tail%
-                        min-length (+ min-length min+)
-                        max-length (if (and (numberp max-length)
-                                            (numberp max+))
-                                     (+ max-length max+)
-                                     nil)))))))
+                        tail  tail%))))))
         (let ((whole-form `(%assert-list-length
-                            ,form ,min-length ,max-length)))
+                            ,form ,*min-length* ,*max-length*)))
           (values vars (cons whole-form forms)))))))
 
 
@@ -138,7 +138,9 @@
       (if (consp param)
         (parse-lambda-list param `(car ,form))
         (values (list param) (list `(car ,form))))
-    (values vars forms `(cdr ,form) 1 1)))
+    (incf *min-length*)
+    (incf *max-length*)
+    (values vars forms `(cdr ,form))))
 
 (defun parse-&optional (param form)
   (multiple-value-bind (var default sp-var)
@@ -147,6 +149,7 @@
         (values param))
     (let* ((sp-var (or sp-var (gensym "supplied-p-")))
            (form%  `(if ,sp-var (car ,form) ,default)))
+      (incf *max-length*)
       (if (consp var)
         (multiple-value-bind (vars% forms%)
             (parse-lambda-list var form%)
@@ -156,10 +159,10 @@
                   0 1))
         (values (list sp-var var)
                 (list `(not (null ,form)) form%)
-                `(cdr ,form)
-                0 1)))))
+                `(cdr ,form))))))
 
 (defun parse-&rest (param form)
+  (setf *max-length* nil)
   (if (consp param)
     (let ((rest-var (gensym "rest-")))
       (multiple-value-bind (vars forms)
@@ -191,7 +194,7 @@
                           (list* sp-form val-form    forms))))
               (values (list sp-var  var)
                       (list sp-form val-form)))
-          (values vars forms form 0))))))
+          (values vars forms form))))))
 
 
 
