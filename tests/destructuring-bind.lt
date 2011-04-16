@@ -1,0 +1,242 @@
+;;; -*- mode: lisp; package: test.destructuring-bind -*-
+;;;
+;;; tests/destructuring-bind.lt
+;;;
+
+;;; Code:
+
+(require "lisp-unit")
+(require "destructuring-bind")
+
+(defpackage :test.destructuring-bind
+  (:use :lisp :lisp-unit))
+
+(in-package :test.destructuring-bind)
+
+(remove-all-tests :test.destructuring-bind)
+
+(defun %bool (x)
+  (not (null x)))
+
+
+;;;;
+;;;; * &required
+
+(define-test &required
+  (assert-equal '(1)
+      (destructuring-bind (foo)
+          '(1)
+        (list foo)))
+  (assert-equal '(1 2)
+      (destructuring-bind (foo bar)
+          '(1 2)
+        (list foo bar)))
+  (assert-equal '(1 2 3)
+      (destructuring-bind (foo bar baz)
+          '(1 2 3)
+        (list foo bar baz))))
+
+(define-test &required-destruct
+  (assert-equal '(1)
+      (destructuring-bind ((x))
+          '((1))
+        (list x)))
+  (assert-equal '(1 2)
+      (destructuring-bind ((x y))
+          '((1 2))
+        (list x y)))
+  (assert-equal '(1 2 3)
+      (destructuring-bind ((x y z))
+          '((1 2 3))
+        (list x y z)))
+  (assert-equal '(1 2 3)
+      (destructuring-bind (x (y z))
+          '(1 (2 3))
+        (list x y z)))
+  (assert-equal '(1 2 3)
+      (destructuring-bind ((x y) z)
+          '((1 2) 3)
+        (list x y z))))
+
+(define-test &required-destructuring-mismatch
+  (assert-error 'too-many-arguments
+      (destructuring-bind (a b)
+          '(1 2 3)
+        (list a b)))
+  (assert-error 'too-few-arguments
+      (destructuring-bind (a b)
+          '(1)
+        (list a b))))
+
+;;;;
+;;;; * &optional
+
+(define-test &optional
+  (assert-equal '(1 2)
+      (destructuring-bind (a &optional b)
+          '(1 2)
+        (list a b)))
+  (assert-equal '(1 nil)
+      (destructuring-bind (a &optional b)
+          '(1)
+        (list a b))))
+
+(define-test &optional-w/default
+  (assert-equal '(1 2)
+      (destructuring-bind (a &optional (b :default))
+          '(1 2)
+        (list a b)))
+  (assert-equal '(1 :default)
+      (destructuring-bind (a &optional (b :default))
+          '(1)
+        (list a b))))
+
+(define-test &optional-w/default+supplied-p
+  (assert-equal '(1 2 t)
+      (destructuring-bind (a &optional (b :default b-supplied-p))
+          '(1 2)
+        (list a b (%bool b-supplied-p))))
+  (assert-equal '(1 :default nil)
+      (destructuring-bind (a &optional (b :default b-supplied-p))
+          '(1)
+        (list a b (%bool b-supplied-p)))))
+
+;;;  destructuring
+(define-test &optional-destruct
+  (assert-equal '(1 2 3)
+      (destructuring-bind (a &optional ((b c)))
+          '(1 (2 3))
+        (list a b c))))
+
+(define-test &optional-destruct-w/default
+  (assert-equal '(1 2 3)
+      (destructuring-bind (a &optional ((b c) '(:a :b)))
+          '(1 (2 3))
+        (list a b c)))
+  (assert-equal '(1 :a :b)
+      (destructuring-bind (a &optional ((b c) '(:a :b)))
+          '(1)
+        (list a b c))))
+
+(define-test &optional-destruct-w/default+supplied-p
+  (assert-equal '(1 2 3 t)
+      (destructuring-bind (a &optional ((b c) '(x y) b-c-supplied-p))
+          '(1 (2 3))
+        (list a b c (%bool b-c-supplied-p))))
+  (assert-equal '(1 x y nil)
+      (destructuring-bind (a &optional ((b c) '(x y) b-c-supplied-p))
+          '(1)
+        (list a b c (%bool b-c-supplied-p)))))
+
+(define-test &optional-destruct-mismatch
+  (assert-error 'too-few-arguments
+      (destructuring-bind (a &optional ((b c)))
+          '(1 (2))
+        (list a b c)))
+  (assert-error 'too-many-arguments
+      (destructuring-bind (a &optional ((b c)))
+          '(1 (2 3 4))
+        (list a b c))))
+
+;;;;
+;;;; * &rest
+
+(define-test &rest
+  (assert-equal '(1 nil)
+      (destructuring-bind (a &rest b)
+          '(1)
+        (list a b)))
+  (assert-equal '(1 (2))
+      (destructuring-bind (a &rest b)
+          '(1 2)
+        (list a b)))
+  (assert-equal '(1 (2 3))
+      (destructuring-bind (a &rest b)
+          '(1 2 3)
+        (list a b))))
+
+(define-test &rest-destruct
+  (assert-equal '(1 2 3)
+      (destructuring-bind (a &rest (b c))
+          '(1 2 3)
+        (list a b c)))
+  (assert-equal '(1 2 3 4)
+      (destructuring-bind (a &rest (b c d))
+          '(1 2 3 4)
+        (list a b c d))))
+
+(define-test &rest-by-dotted-list
+  (assert-equal '(1 nil)
+      (destructuring-bind (a . b)
+          '(1)
+        (list a b)))
+  (assert-equal '(1 (2))
+      (destructuring-bind (a . b)
+          '(1 2)
+        (list a b)))
+  (assert-equal '(1 (2 3))
+      (destructuring-bind (a . b)
+          '(1 2 3)
+        (list a b))))
+
+;;;;
+;;;; * &key
+
+(define-test &key
+  (assert-equal '(1 2)
+      (destructuring-bind (&key a b)
+          '(:a 1 :b 2)
+        (list a b)))
+  (assert-equal '(2 1)
+      (destructuring-bind (&key a b)
+          '(:b 1 :a 2)
+        (list a b)))
+  (assert-equal '(2 1)
+      (destructuring-bind (&key a b)
+          '(:a 2 :b 1)
+        (list a b)))
+  (assert-equal '(1 2)
+      (destructuring-bind (&key a b)
+          '(:b 2 :a 1)
+        (list a b))))
+
+(define-test &key-w/default
+  (assert-equal '(:default)
+      (destructuring-bind (&key (a :default))
+          '()
+        (list a)))
+  (assert-equal '(1)
+      (destructuring-bind (&key (a :default))
+          '(:a 1)
+        (list a))))
+
+(define-test &key-w/default+sp-var
+  (assert-equal '(1 t)
+      (destructuring-bind (&key (a :default b))
+          '(:a 1)
+        (list a (%bool b))))
+  (assert-equal '(:default nil)
+      (destructuring-bind (&key (a :default b))
+          '()
+        (list a (%bool b)))))
+
+(define-test &key-w/key
+  (assert-equal '(nil 1)
+      (destructuring-bind (&key ((:a b)) ((:b a)))
+          '(:a 1)
+        (list a b)))
+  (assert-equal '(2 1)
+      (destructuring-bind (&key ((:a b)) ((:b a)))
+          '(:a 1 :b 2)
+        (list a b))))
+
+(define-test &key-destruct-w/key
+  (assert-equal '(1 2 3)
+      (destructuring-bind (&key ((:foo (a b c))))
+          '(:foo (1 2 3))
+        (list a b c))))
+
+
+
+
+
