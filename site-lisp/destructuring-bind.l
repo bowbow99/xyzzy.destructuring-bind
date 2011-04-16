@@ -65,7 +65,8 @@
 (defparameter *state/parser-alist*
   '((&required . parse-&required)
     (&optional . parse-&optional)
-    ;(&rest     . parse-&rest)
+    (&rest     . parse-&rest)
+    (&body     . parse-&rest)
     (&key      . parse-&key)
     ))
 
@@ -87,6 +88,7 @@
           (tail  whole-var)
           (state '&required)
           (rest-var nil)
+          (*rest-var* nil)
           (*min-length* 0)
           (*max-length* 0))
       (progn
@@ -98,25 +100,12 @@
             (with-ca/dr (x rest) lambda-list
               (if (member x *destructuring-lambda-list-keywords*)
                 (case x
-                  ((&optional)
+                  ((&optional &rest &body)
                    (setq state x))
-                  ((&rest &body)
-                   (with-ca/dr (next rest) rest
-                     (unless (or (null rest)
-                                 (member (car rest) '(&key &aux)))
-                       (error 'invalid-lambda-list
-                              :datum *lambda-list*))
-                     (multiple-value-bind (vars% forms% rest-var%)
-                         (parse-&rest next tail)
-                       (setq vars  (append vars vars%)
-                             forms (append forms forms%)
-                             rest-var rest-var%
-                             max-length nil
-                             lambda-list (cons nil rest)))))
                   ((&key)
-                   (if rest-var
+                   (if *rest-var*
                      (setq state '&key
-                           tail  rest-var)
+                           tail  *rest-var*)
                      (setq lambda-list (list* nil '&rest (gensym "all-keyargs-") lambda-list))))
                   ((&allow-other-keys))
                   ((&aux)))
@@ -159,17 +148,21 @@
                 (list* sp-form forms)
                 `(cdr ,form))))))
 
-
 (defun parse-&rest (param form)
-  (setf *max-length* nil)
-  (if (consp param)
-    (let ((rest-var (gensym "rest-")))
-      (multiple-value-bind (vars forms)
+  (when *rest-var*
+    (error 'invalid-lambda-list :datum *lambda-list*))
+  (let ((rest-var (if (consp param)
+                    (gensym "rest-")
+                    param)))
+    (multiple-value-bind (vars forms)
+        (if (consp param)
           (parse-lambda-list param rest-var)
-        (values (cons rest-var vars)
-                (cons form forms)
-                rest-var)))
-    (values (list param) (list form) param)))
+          (values (list param) (list form)))
+      (setf *max-length* nil
+            *rest-var*   rest-var)
+      (values (list* rest-var vars)
+              (list* form forms)
+              rest-var))))
 
 
 
