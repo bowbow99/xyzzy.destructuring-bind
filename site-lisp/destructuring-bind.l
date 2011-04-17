@@ -224,12 +224,14 @@
     (multiple-value-bind (*vars *forms)
         (when (null *rest-var*)
           ;; NOTE: When &key started without &rest, use GENSYM as rest-var.
-          (let ((rest-var (gensym "all-keyargs-")))
-            (multiple-value-prog1
-                (values (list rest-var) (list form))
-              (setf *rest-var*   rest-var
-                    *max-length* nil
-                    form         rest-var))))
+          (let ((rest-var (gensym "all-keyargs-"))
+                (placeholder (gensym "$KEY-ARGS-FORM-")))
+            (setf *max-length* nil
+                  *rest-var*   rest-var
+                  *rest-form-placeholder* placeholder
+                  *rest-form*  form
+                  form         rest-var)
+            (values (list rest-var) (list placeholder))))
       (multiple-value-bind (keyword var default sp-var)
           (if (consp param)
             (with-places ((key/var first) (default second) (sp-var third)) param
