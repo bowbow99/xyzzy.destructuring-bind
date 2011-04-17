@@ -26,7 +26,9 @@
 (in-package :destructuring-bind)
 
 ;; * Debug flag
-(when t
+(defvar *debugging* nil)
+
+(when *debugging*
   (pushnew :debug *features*))
 
 ;;;;
