@@ -103,6 +103,7 @@
     (&rest     . parse-&rest)
     (&body     . parse-&rest)
     (&key      . parse-&key)
+    (&aux      . parse-&aux)
     ))
 
 (defparameter *lambda-list* nil)
@@ -151,11 +152,10 @@
                 ;; FIXME: lambda list keywords must be in specific order
                 ;; i.e. This is invalid: (a &rest b &optional c &aux d &key &allow-other-keys e)
                 (case x
-                  ((&optional &rest &body &key)
+                  ((&optional &rest &body &key &aux)
                    (setq state x))
                   ((&allow-other-keys)
-                   (setq *allow-other-keys-p* t))
-                  ((&aux)))
+                   (setq *allow-other-keys-p* t)))
                 (multiple-value-bind (vars% forms% tail%)
                     (funcall (or (cdr (assoc state *state/parser-alist*))
                                  (error "No parser found for state `~S'."
@@ -257,6 +257,12 @@
             (values (append *vars  vars)
                     (append *forms forms)
                     *rest-var*)))))))
+
+(defun parse-&aux (param form)
+  (if (consp param)
+    (with-places (first second) param
+      (values (list first) (list second)))
+    (values (list param) (list nil))))
 
 
 (defmacro lisp:destructuring-bind (lambda-list expr &body body)
