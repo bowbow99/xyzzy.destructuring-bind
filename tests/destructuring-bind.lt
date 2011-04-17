@@ -155,7 +155,7 @@
           '((1 2) 3)
         (list x y z))))
 
-(define-test &required-destructuring-mismatch
+(define-test &required-wrong-number-of-arguments
   (assert-error 'too-many-arguments
       (destructuring-bind (a b)
           '(1 2 3)
@@ -164,6 +164,16 @@
       (destructuring-bind (a b)
           '(1)
         (list a b))))
+
+(define-test &required-destructuring-mismatch
+  (assert-error 'type-error
+      (destructuring-bind (a (b c))
+          '(1 2)
+        (list a b c)))
+  (assert-error 'type-error
+      (destructuring-bind ((a b) c)
+          '(1 2)
+        (list a b c))))
 
 ;;;;
 ;;;; * &optional
@@ -234,6 +244,16 @@
       (destructuring-bind (a &optional ((b c)))
           '(1 (2 3 4))
         (list a b c))))
+
+(define-test &optional-destructuring-mismatch-in-initform
+  (assert-error 'too-few-arguments
+      (destructuring-bind (&optional ((a b) '(1)))
+          nil
+        (list a b)))
+  (assert-error 'too-many-arguments
+      (destructuring-bind (&optional ((a b) '(1 2 3)))
+          nil
+        (list a b))))
 
 (define-test &optional-initform-environment
   (assert-equal '(1 1)
