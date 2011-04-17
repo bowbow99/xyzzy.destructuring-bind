@@ -152,8 +152,7 @@
                     param)))
     (multiple-value-bind (vars forms)
         (if (consp param)
-          (parse-lambda-list param rest-var)
-          (values (list param) (list form)))
+          (parse-lambda-list param rest-var))
       (setf *max-length* nil
             *rest-var*   rest-var)
       (values (list* rest-var vars)
