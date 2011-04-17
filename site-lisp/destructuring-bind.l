@@ -161,9 +161,14 @@
                   (setq vars  (append vars vars%)
                         forms (append forms forms%)
                         tail  tail%))))))
-        (setq forms (nsubst `(%assert-list-length ,*whole-form* ,*min-length* ,*max-length*)
-                            *whole-form-placeholder* forms)
-              forms (nsubst *rest-form* *rest-form-placeholder* forms))
+        (setq forms (subst `(%assert-list-length
+                             ,*whole-form* ,*min-length* ,*max-length*)
+                           *whole-form-placeholder* forms)
+              forms (subst (if (not *keyword-arguments-p*)
+                             *rest-form*
+                             `(%assert-keyword-list
+                               ,*rest-form* ',*known-keywords* ,*allow-other-keys-p*))
+                           *rest-form-placeholder* forms))
         #+debug (break "keywords: ~S" *known-keywords*)
         (values vars forms)))))
 
