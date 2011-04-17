@@ -74,8 +74,11 @@
 
 (defparameter *lambda-list* nil)
 
+(defparameter *whole-form-placeholder* nil)
+(defparameter *whole-form* nil)
 (defparameter *max-length* nil)
 (defparameter *min-length* nil)
+
 (defparameter *rest-var* nil)
 (defparameter *known-keys* nil)
 
@@ -85,13 +88,15 @@
       (if (eql (car lambda-list) '&whole)
         (values (second lambda-list) (cddr lambda-list))
         (values (gensym "whole-")    lambda-list))
-    (let ((vars  (list whole-var))
-          (forms (list))
-          (tail  whole-var)
-          (state '&required)
-          (*rest-var* nil)
-          (*min-length* 0)
-          (*max-length* 0))
+    (let* ((vars  (list whole-var))
+           (*whole-form-placeholder* (gensym "WHOLE-FORM-"))
+           (*whole-form* form)
+           (forms (list *whole-form-placeholder*))
+           (tail  whole-var)
+           (state '&required)
+           (*rest-var* nil)
+           (*min-length* 0)
+           (*max-length* 0))
       (progn
         (do ((lambda-list lambda-list (cdr lambda-list)))
             ((null lambda-list))
@@ -113,9 +118,9 @@
                   (setq vars  (append vars vars%)
                         forms (append forms forms%)
                         tail  tail%))))))
-        (let ((whole-form `(%assert-list-length
-                            ,form ,*min-length* ,*max-length*)))
-          (values vars (cons whole-form forms)))))))
+        (setq forms (nsubst `(%assert-list-length ,*whole-form* ,*min-length* ,*max-length*)
+                            *whole-form-placeholder* forms))
+        (values vars forms)))))
 
 
 (defun parse-&required (param form)
