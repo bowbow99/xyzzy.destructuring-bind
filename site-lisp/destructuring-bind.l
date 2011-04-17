@@ -25,13 +25,12 @@
 
 (in-package :destructuring-bind)
 
-;;; * Debug flag
+;; * Debug flag
 (when t
   (pushnew :debug *features*))
 
-
-(defparameter *destructuring-lambda-list-keywords*
-  (list &optional &rest &key &aux &body &whole &environment &allow-other-keys))
+;;;;
+;;;; * Utilities
 
 (defmacro with-ca/dr ((car-var cdr-var) cons &body body)
   `(let ((#1=#:cons ,cons))
@@ -51,6 +50,9 @@
        ,@body)))
 #+xyzzy
 (setf (get 'with-places 'ed:lisp-indent-hook) 2)
+
+(defparameter *destructuring-lambda-list-keywords*
+  (list &optional &rest &key &aux &body &whole &environment &allow-other-keys))
 
 (defun %assert-list-length (list min max)
   (declare (type list list)
