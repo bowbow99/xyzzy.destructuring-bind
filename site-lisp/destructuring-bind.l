@@ -39,7 +39,9 @@
 (defmacro with-places ((&rest places) object &body body)
   `(let ((#1=#:object ,object))
      (let (,@(mapcar (lambda (place)
-                       `(,place (,place #1#)))
+                       (if (consp place)
+                         `(,(first place) (,(second place) #1#))
+                         `(,place (,place #1#))))
                places))
        ,@body)))
 #+xyzzy
@@ -87,7 +89,6 @@
           (forms (list))
           (tail  whole-var)
           (state '&required)
-          (rest-var nil)
           (*rest-var* nil)
           (*min-length* 0)
           (*max-length* 0))
@@ -100,13 +101,8 @@
             (with-ca/dr (x rest) lambda-list
               (if (member x *destructuring-lambda-list-keywords*)
                 (case x
-                  ((&optional &rest &body)
+                  ((&optional &rest &body &key)
                    (setq state x))
-                  ((&key)
-                   (if *rest-var*
-                     (setq state '&key
-                           tail  *rest-var*)
-                     (setq lambda-list (list* nil '&rest (gensym "all-keyargs-") lambda-list))))
                   ((&allow-other-keys))
                   ((&aux)))
                 (multiple-value-bind (vars% forms% tail%)
@@ -164,33 +160,40 @@
               (list* form forms)
               rest-var))))
 
-
-
 (defun parse-&key (param form)
   (labels ((keyword (name)
              (intern (string name) :keyword)))
-    (multiple-value-bind (key-symbol var default sp-var)
-        (if (consp param)
-          (with-places (first second third) param
-            (if (consp first)
-              (values (first first) (second first) second third)
-              (values (keyword first) first second third)))
-          (values (keyword param) param))
-      (let* ((sp-var   (or sp-var (gensym "keyarg-supplied-p-")))
-             (sp-form  `(get-properties ,form '(,key-symbol)))
-             (val-form `(if ,sp-var (getf ,form ',key-symbol) ,default)))
-        (multiple-value-bind (vars forms)
-            (if (consp var)
-              (let ((sublist-var (gensym "keyarg-")))
-                (multiple-value-bind (vars forms)
-                    (parse-lambda-list var sublist-var)
-                  (values (list* sp-var  sublist-var vars)
-                          (list* sp-form val-form    forms))))
-              (values (list sp-var  var)
-                      (list sp-form val-form)))
-          (values vars forms form))))))
-
-
+    (multiple-value-bind (*vars *forms)
+        (when (null *rest-var*)
+          ;; NOTE: When &key started without &rest, use GENSYM as rest-var.
+          (let ((rest-var (gensym "all-keyargs-")))
+            (multiple-value-prog1
+                (values (list rest-var) (list form))
+              (setf *rest-var*   rest-var
+                    *max-length* nil
+                    form         rest-var))))
+      (multiple-value-bind (keyword var default sp-var)
+          (if (consp param)
+            (with-places ((key/var first) (default second) (sp-var third)) param
+              (if (consp key/var)
+                (values (first key/var)   (second key/var) default sp-var)
+                (values (keyword key/var) key/var          default sp-var)))
+            (values (keyword param) param))
+        (let* ((sp-var     (or sp-var (gensym "keyarg-supplied-p-")))
+               (sp-form    `(get-properties ,form '(,keyword)))
+               (value-form `(if ,sp-var (getf ,form ',keyword) ,default)))
+          (multiple-value-bind (vars forms)
+              (if (consp var)
+                (let ((sublist-var (gensym "keyarg-sublist-")))
+                  (multiple-value-bind (vars forms)
+                      (parse-lambda-list var sublist-var)
+                    (values (list* sp-var  sublist-var vars)
+                            (list* sp-form value-form  forms))))
+                (values (list sp-var  var)
+                        (list sp-form value-form)))
+            (values (append *vars  vars)
+                    (append *forms forms)
+                    *rest-var*)))))))
 
 
 (defmacro lisp:destructuring-bind (lambda-list expr &body body)
