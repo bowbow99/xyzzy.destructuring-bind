@@ -236,7 +236,15 @@
           '(:foo (1 2 3))
         (list a b c))))
 
-
+(define-test &key-given-unknown-keyword
+  (assert-error 'invalid-keyword-list
+      (destructuring-bind (&key a b)
+          '(:foo 3)
+        (list a b)))
+  (assert-error 'invalid-keyword-list
+      (destructuring-bind (&key a b)
+          '(:a 1 :b 2 :c 3)
+        (list a b))))
 
 
 
