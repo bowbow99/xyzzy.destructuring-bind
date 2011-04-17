@@ -25,8 +25,14 @@
 
 (in-package :destructuring-bind)
 
-(defparameter *destructuring-lambda-list-keywords*
-  (list &optional &rest &key &aux &body &whole &environment &allow-other-keys))
+;; * Debug flag
+(defvar *debugging* nil)
+
+(when *debugging*
+  (pushnew :debug *features*))
+
+;;;;
+;;;; * Utilities
 
 (defmacro with-ca/dr ((car-var cdr-var) cons &body body)
   `(let ((#1=#:cons ,cons))
@@ -39,14 +45,29 @@
 (defmacro with-places ((&rest places) object &body body)
   `(let ((#1=#:object ,object))
      (let (,@(mapcar (lambda (place)
-                       `(,place (,place #1#)))
+                       (if (consp place)
+                         `(,(first place) (,(second place) #1#))
+                         `(,place (,place #1#))))
                places))
        ,@body)))
 #+xyzzy
 (setf (get 'with-places 'ed:lisp-indent-hook) 2)
 
+;; modified version of http://paste.lisp.org/display/24480
+(defun proper-list-p (object)
+  (if (null object) t
+    (and (listp object)
+         (do ((fast (cdr object) (cddr fast))
+              (slow object (cdr slow)))
+             ()
+           (cond ((null fast) (return t))
+                 ((atom fast) (return nil))
+                 ((null (cdr fast)) (return t))
+                 ((atom (cdr fast)) (return nil))
+                 ((eql fast slow) (return nil)))))))
 
-
+(defparameter *destructuring-lambda-list-keywords*
+  (list &optional &rest &key &aux &body &whole &environment &allow-other-keys))
 
 (defun %assert-list-length (list min max)
   (declare (type list list)
@@ -61,15 +82,43 @@
       (error 'too-many-arguments :datum list))
     list))
 
+(defun %assert-keyword-list (keyword-list allowed-keywords allow-other-keys)
+  "Check whether KEYWORD-LIST is proper or not, and return it as-is."
+  ;; NOTE: `&allow-othe-keys X` is always permitted
+  (setq allowed-keywords (cons '&allow-other-keys allowed-keywords))
+  (unless (and (proper-list-p keyword-list)
+               (evenp (length keyword-list))
+               (or allow-other-keys
+                   (getf keyword-list :allow-other-keys)
+                   (do ((list keyword-list (cddr list)))
+                       ((null list) t)
+                     (unless (member (car list) allowed-keywords)
+                       (return nil)))))
+    (error 'invalid-keyword-list :datum keyword-list))
+  keyword-list)
 
 (defparameter *state/parser-alist*
   '((&required . parse-&required)
     (&optional . parse-&optional)
-    ;(&rest     . parse-&rest)
+    (&rest     . parse-&rest)
+    (&body     . parse-&rest)
     (&key      . parse-&key)
     ))
 
 (defparameter *lambda-list* nil)
+
+(defparameter *whole-form-placeholder* nil)
+(defparameter *whole-form* nil)
+(defparameter *max-length* nil)
+(defparameter *min-length* nil)
+
+(defparameter *rest-form* nil)
+(defparameter *rest-form-placeholder* nil)
+(defparameter *rest-var* nil)
+
+(defparameter *keyword-arguments-p* nil)
+(defparameter *known-keywords* nil)
+(defparameter *allow-other-keys-p* nil)
 
 (defun parse-lambda-list (lambda-list form)
   (declare (type list lambda-list))
@@ -77,13 +126,20 @@
       (if (eql (car lambda-list) '&whole)
         (values (second lambda-list) (cddr lambda-list))
         (values (gensym "whole-")    lambda-list))
-    (let ((vars  (list whole-var))
-          (forms (list))
-          (tail  whole-var)
-          (state '&required)
-          (rest-var nil)
-          (min-length 0)
-          (max-length 0))
+    (let* ((vars  (list whole-var))
+           (*whole-form-placeholder* (gensym "$WHOLE-FORM-"))
+           (*whole-form* form)
+           (*min-length* 0)
+           (*max-length* 0)
+           (forms (list *whole-form-placeholder*))
+           (tail  whole-var)
+           (state '&required)
+           (*rest-var* nil)
+           (*rest-form-placeholder* nil)
+           (*rest-form* nil)
+           (*keyword-arguments-p* nil)
+           (*allow-other-keys-p* nil)
+           (*known-keywords* nil))
       (progn
         (do ((lambda-list lambda-list (cdr lambda-list)))
             ((null lambda-list))
@@ -93,44 +149,28 @@
             (with-ca/dr (x rest) lambda-list
               (if (member x *destructuring-lambda-list-keywords*)
                 (case x
-                  ((&optional)
+                  ((&optional &rest &body &key)
                    (setq state x))
-                  ((&rest &body)
-                   (with-ca/dr (next rest) rest
-                     (unless (or (null rest)
-                                 (member (car rest) '(&key &aux)))
-                       (error 'invalid-lambda-list
-                              :datum *lambda-list*))
-                     (multiple-value-bind (vars% forms% rest-var%)
-                         (parse-&rest next tail)
-                       (setq vars  (append vars vars%)
-                             forms (append forms forms%)
-                             rest-var rest-var%
-                             max-length nil
-                             lambda-list (cons nil rest)))))
-                  ((&key)
-                   (if rest-var
-                     (setq state '&key
-                           tail  rest-var)
-                     (setq lambda-list (list* nil '&rest (gensym "all-keyargs-") lambda-list))))
                   ((&allow-other-keys))
                   ((&aux)))
-                (multiple-value-bind (vars% forms% tail% min+ max+)
+                (multiple-value-bind (vars% forms% tail%)
                     (funcall (or (cdr (assoc state *state/parser-alist*))
                                  (error "No parser found for state `~S'."
                                         state))
                              x tail)
                   (setq vars  (append vars vars%)
                         forms (append forms forms%)
-                        tail  tail%
-                        min-length (+ min-length min+)
-                        max-length (if (and (numberp max-length)
-                                            (numberp max+))
-                                     (+ max-length max+)
-                                     nil)))))))
-        (let ((whole-form `(%assert-list-length
-                            ,form ,min-length ,max-length)))
-          (values vars (cons whole-form forms)))))))
+                        tail  tail%))))))
+        (setq forms (subst `(%assert-list-length
+                             ,*whole-form* ,*min-length* ,*max-length*)
+                           *whole-form-placeholder* forms)
+              forms (subst (if (not *keyword-arguments-p*)
+                             *rest-form*
+                             `(%assert-keyword-list
+                               ,*rest-form* ',*known-keywords* ,*allow-other-keys-p*))
+                           *rest-form-placeholder* forms))
+        #+debug (break "keywords: ~S" *known-keywords*)
+        (values vars forms)))))
 
 
 (defun parse-&required (param form)
@@ -138,62 +178,82 @@
       (if (consp param)
         (parse-lambda-list param `(car ,form))
         (values (list param) (list `(car ,form))))
-    (values vars forms `(cdr ,form) 1 1)))
+    (incf *min-length*)
+    (incf *max-length*)
+    (values vars forms `(cdr ,form))))
 
 (defun parse-&optional (param form)
   (multiple-value-bind (var default sp-var)
       (if (consp param)
-        (values (first param) (second param) (third param))
-        (values param))
-    (let* ((sp-var (or sp-var (gensym "supplied-p-")))
-           (form%  `(if ,sp-var (car ,form) ,default)))
-      (if (consp var)
-        (multiple-value-bind (vars% forms%)
+        (values-list param)
+        param)
+    (let* ((sp-var  (or sp-var (gensym "supplied-p-")))
+           (sp-form `(not (null ,form)))
+           (form%   `(if ,sp-var (car ,form) ,default)))
+      (multiple-value-bind (vars forms)
+          (if (consp var)
             (parse-lambda-list var form%)
-          (values (list* sp-var vars%)
-                  (list* `(not (null ,form)) forms%)
-                  `(cdr ,form)
-                  0 1))
-        (values (list sp-var var)
-                (list `(not (null ,form)) form%)
-                `(cdr ,form)
-                0 1)))))
+            (values (list var) (list form%)))
+        (incf *max-length*)
+        (values (list* sp-var  vars)
+                (list* sp-form forms)
+                `(cdr ,form))))))
+
+(defun %setup-rest-var/form (var form)
+  (setf *max-length* nil
+        *rest-var*   var
+        *rest-form-placeholder* (gensym "$REST-FORM-")
+        *rest-form* form))
 
 (defun parse-&rest (param form)
-  (if (consp param)
-    (let ((rest-var (gensym "rest-")))
-      (multiple-value-bind (vars forms)
-          (parse-lambda-list param rest-var)
-        (values (cons rest-var vars)
-                (cons form forms)
-                rest-var)))
-    (values (list param) (list form) param)))
+  (when *rest-var*
+    (error 'invalid-lambda-list :datum *lambda-list*))
+  (let ((rest-var (if (consp param)
+                    (gensym "rest-")
+                    param)))
+    (multiple-value-bind (vars forms)
+        (if (consp param)
+          (parse-lambda-list param rest-var))
+      (%setup-rest-var/form rest-var form)
+      ;; `*rest-form-placeholder*` will be replaced with form stored
+      ;; in `*rest-form*`.
+      (values (list* rest-var vars)
+              (list* *rest-form-placeholder* forms)
+              rest-var))))
 
 (defun parse-&key (param form)
   (labels ((keyword (name)
              (intern (string name) :keyword)))
-    (multiple-value-bind (key-symbol var default sp-var)
-        (if (consp param)
-          (with-places (first second third) param
-            (if (consp first)
-              (values (first first) (second first) second third)
-              (values (keyword first) first second third)))
-          (values (keyword param) param))
-      (let* ((sp-var   (or sp-var (gensym "keyarg-supplied-p-")))
-             (sp-form  `(get-properties ,form '(,key-symbol)))
-             (val-form `(if ,sp-var (getf ,form ',key-symbol) ,default)))
-        (multiple-value-bind (vars forms)
-            (if (consp var)
-              (let ((sublist-var (gensym "keyarg-")))
-                (multiple-value-bind (vars forms)
-                    (parse-lambda-list var sublist-var)
-                  (values (list* sp-var  sublist-var vars)
-                          (list* sp-form val-form    forms))))
-              (values (list sp-var  var)
-                      (list sp-form val-form)))
-          (values vars forms form 0))))))
-
-
+    (multiple-value-bind (*vars *forms)
+        (when (null *rest-var*)
+          ;; NOTE: When &key started without &rest, use GENSYM as rest-var.
+          (%setup-rest-var/form (gensym "all-keyargs-") form)
+          (values (list *rest-var*)
+                  (list *rest-form-placeholder*)))
+      (multiple-value-bind (keyword var default sp-var)
+          (if (consp param)
+            (with-places ((key/var first) (default second) (sp-var third)) param
+              (if (consp key/var)
+                (values (first key/var)   (second key/var) default sp-var)
+                (values (keyword key/var) key/var          default sp-var)))
+            (values (keyword param) param))
+        (let* ((sp-var     (or sp-var (gensym "keyarg-supplied-p-")))
+               (sp-form    `(get-properties ,form '(,keyword)))
+               (value-form `(if ,sp-var (getf ,form ',keyword) ,default)))
+          (multiple-value-bind (vars forms)
+              (if (consp var)
+                (let ((sublist-var (gensym "keyarg-sublist-")))
+                  (multiple-value-bind (vars forms)
+                      (parse-lambda-list var sublist-var)
+                    (values (list* sp-var  sublist-var vars)
+                            (list* sp-form value-form  forms))))
+                (values (list sp-var  var)
+                        (list sp-form value-form)))
+            (setf *keyword-arguments-p* t
+                  *known-keywords* (cons keyword *known-keywords*))
+            (values (append *vars  vars)
+                    (append *forms forms)
+                    *rest-var*)))))))
 
 
 (defmacro lisp:destructuring-bind (lambda-list expr &body body)
@@ -211,7 +271,8 @@
 
 
 
-
+#+debug
+(setf *features* (delete :debug *features*))
 
 
 
