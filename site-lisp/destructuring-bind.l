@@ -75,12 +75,11 @@
   "Check LIST is a list with expected number of elements, and return the LIST as-is."
   (unless (listp list)
     (error 'type-error :datum list :expected-type 'list))
-  (let ((len (list-length list)))
-    (unless (or (null min) (<= min len))
-      (error 'too-few-arguments :datum list))
-    (unless (or (null max) (<= len max))
-      (error 'too-many-arguments :datum list))
-    list))
+  (unless (or (null min) (zerop min) (nthcdr (1- min) list))
+    (error 'too-few-arguments :datum list))
+  (unless (or (null max) (<= (list-length list) max))
+    (error 'too-many-arguments :datum list))
+  list)
 
 (defun %assert-keyword-list (keyword-list allowed-keywords allow-other-keys)
   "Check whether KEYWORD-LIST is proper or not, and return it as-is."
