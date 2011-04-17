@@ -7,6 +7,7 @@
 
 (require "lisp-unit")
 (require "destructuring-bind")
+(require "cmu_loop")
 
 (defpackage :test.destructuring-bind
   (:use :lisp :lisp-unit))
@@ -17,6 +18,85 @@
 
 (defun %bool (x)
   (not (null x)))
+
+
+;;;;
+;;;; * Utilities: %assert-keyword-list
+(import 'destructuring-bind::%assert-keyword-list)
+
+(defparameter *allowed-keywords* nil)
+(defparameter *allow-other-keys* nil)
+
+(defmacro assert-keyword-list (expected keyword-list &rest extras)
+  (case expected
+    ((t)
+     `(assert-true
+          (%assert-keyword-list ,keyword-list *allowed-keywords* *allow-other-keys*)
+        ,@extras))
+    ((error nil)
+     `(assert-error 'invalid-keyword-list
+          (%assert-keyword-list ,keyword-list *allowed-keywords* *allow-other-keys*)
+        ,@extras))
+    (t
+     (error "assert-keyword-list: Invalid expectation: ~S" expected))))
+
+(define-test %assert-keyword-list-OK
+  (let ((*allowed-keywords* '(:foo :bar :baz))
+        (*allow-other-keys* nil))
+    (loop for x in '((:foo 1)
+                     (:bar 1)
+                     (:baz 1)
+                     (:foo 1 :bar 2)
+                     (:foo 1 :baz 3)
+                     (:foo 1 :bar 2 :baz 3)
+                     (:foo 1 :baz 3 :bar 2)
+                     (:bar 2 :baz 3)
+                     (:bar 2 :foo 1)
+                     (:bar 2 :foo 1 :baz 3)
+                     (:bar 2 :baz 3 :foo 1)
+                     (:baz 3 :bar 2))
+      do (assert-keyword-list t x))))
+
+(define-test %assert-keyword-list-odd-length
+  (let ((*allowed-keywords* '(:foo :bar :baz))
+        (*allow-other-keys* nil))
+    (loop for x in '((:foo) (1) (:foo 1 2) (:bar 2 :foo))
+      do (assert-keyword-list nil x))))
+
+(define-test %assert-keyword-list-not-a-list
+  (let ((*allowed-keywords* '(:foo :bar :baz))
+        (*allow-other-keys* nil))
+    (loop for x in '("foo" #(a b c) #(a b) #\LFD 33)
+      do (assert-keyword-list nil x))))
+
+(define-test %assert-keyword-list-dotted-list
+  (let ((*allowed-keywords* '(:foo :bar :baz))
+        (*allow-other-keys* nil))
+    (loop for x in '((:foo . 1)
+                     (:foo 1 . :bar)
+                     (:foo 1 :bar . 2)
+                     (:foo 1 :bar 2 . 3))
+      do (assert-keyword-list nil x))))
+
+(define-test %assert-keyword-list-circular-list
+  (let ((*allowed-keywords* '(:foo :bar :baz))
+        (*allow-other-keys* nil))
+    (loop for x in '(#1=(:foo . #1#)
+                     #2=(:foo 1 . #1#))
+      do (assert-keyword-list nil x))))
+
+(define-test %assert-keyword-list-unknown-keyword
+  (let ((*allowed-keywords* '(:foo :bar :baz))
+        (examples '((:foo 1 :hoge "hoge")
+                    (:foo 1 :bar 2 :hoge "hoge")
+                    (:hoge "hoge")
+                    (:hoge "hoge" :fuga "fuga"))))
+    (let ((*allow-other-keys* nil))
+      (loop for x in examples
+        do (assert-keyword-list nil x)))
+    (let ((*allow-other-keys* t))
+      (loop for x in examples
+        do (assert-keyword-list t x)))))
 
 
 ;;;;
