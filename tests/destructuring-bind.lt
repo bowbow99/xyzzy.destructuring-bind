@@ -343,6 +343,50 @@
           '(:a 1 :b 2 :c 3)
         (list a b))))
 
+(define-test &key-supress-keyword-check
+  (assert-equal '(1 2)
+      (destructuring-bind (&key a b)
+          '(:a 1 :b 2 :c 3 :allow-other-keys t)
+        (list a b)))
+  (assert-equal '(1 nil)
+      (destructuring-bind (&key a b)
+          '(:a 1 :c 3 :allow-other-keys t)
+        (list a b)))
+  (assert-error 'invalid-keyword-list
+      (destructuring-bind (&key a b)
+          '(:a 1 :b 2 :c 3 :allow-other-keys nil)
+        (list a b)))
+  (assert-equal '(1 2)
+      (destructuring-bind (&key a b)
+          '(:a 1 :b 2 :c 3 :allow-other-keys t :allow-other-keys nil)
+        (list a b)))
+  (assert-error 'invalid-keyword-list
+      (destructuring-bind (&key a b)
+          '(:a 1 :b 2 :c 3 :allow-other-keys nil :allow-other-keys t)
+        (list a b))))
+
+;;;;
+;;;; * &rest + &key
+
+(define-test &rest+&key
+  (assert-equal '((:a 1 :b 2) 1 2)
+      (destructuring-bind (&rest all &key a b)
+          '(:a 1 :b 2)
+        (list all a b)))
+  (assert-equal '((:b 2 :a 1) 1 2)
+      (destructuring-bind (&rest all &key a b)
+          '(:b 2 :a 1)
+        (list all a b)))
+  (assert-equal '((:a 1) 1 nil)
+      (destructuring-bind (&rest all &key a b)
+          '(:a 1)
+        (list all a b)))
+  (assert-equal '((:b 2) nil 2)
+      (destructuring-bind (&rest all &key a b)
+          '(:b 2)
+        (list all a b))))
+
+
 ;;;;
 ;;;; * &allow-other-keys
 
