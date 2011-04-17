@@ -199,6 +199,12 @@
                 (list* sp-form forms)
                 `(cdr ,form))))))
 
+(defun %setup-rest-var/form (var form)
+  (setf *max-length* nil
+        *rest-var*   var
+        *rest-form-placeholder* (gensym "$REST-FORM-")
+        *rest-form* form))
+
 (defun parse-&rest (param form)
   (when *rest-var*
     (error 'invalid-lambda-list :datum *lambda-list*))
@@ -208,10 +214,7 @@
     (multiple-value-bind (vars forms)
         (if (consp param)
           (parse-lambda-list param rest-var))
-      (setf *max-length* nil
-            *rest-var*   rest-var
-            *rest-form-placeholder* (gensym "$REST-FORM-")
-            *rest-form*  form)
+      (%setup-rest-var/form rest-var form)
       ;; `*rest-form-placeholder*` will be replaced with form stored
       ;; in `*rest-form*`.
       (values (list* rest-var vars)
@@ -224,14 +227,9 @@
     (multiple-value-bind (*vars *forms)
         (when (null *rest-var*)
           ;; NOTE: When &key started without &rest, use GENSYM as rest-var.
-          (let ((rest-var (gensym "all-keyargs-"))
-                (placeholder (gensym "$KEY-ARGS-FORM-")))
-            (setf *max-length* nil
-                  *rest-var*   rest-var
-                  *rest-form-placeholder* placeholder
-                  *rest-form*  form
-                  form         rest-var)
-            (values (list rest-var) (list placeholder))))
+          (%setup-rest-var/form (gensym "all-keyargs-") form)
+          (values (list *rest-var*)
+                  (list *rest-form-placeholder*)))
       (multiple-value-bind (keyword var default sp-var)
           (if (consp param)
             (with-places ((key/var first) (default second) (sp-var third)) param
