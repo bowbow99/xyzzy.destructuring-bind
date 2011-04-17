@@ -156,7 +156,9 @@
           (values (list param) (list form)))
       (setf *max-length* nil
             *rest-var*   rest-var)
-      (values vars forms rest-var))))
+      (values (list* rest-var vars)
+              (list* form forms)
+              rest-var))))
 
 (defun parse-&key (param form)
   (labels ((keyword (name)
