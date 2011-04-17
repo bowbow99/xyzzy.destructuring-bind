@@ -25,6 +25,11 @@
 
 (in-package :destructuring-bind)
 
+;;; * Debug flag
+(when t
+  (pushnew :debug *features*))
+
+
 (defparameter *destructuring-lambda-list-keywords*
   (list &optional &rest &key &aux &body &whole &environment &allow-other-keys))
 
@@ -46,9 +51,6 @@
        ,@body)))
 #+xyzzy
 (setf (get 'with-places 'ed:lisp-indent-hook) 2)
-
-
-
 
 (defun %assert-list-length (list min max)
   (declare (type list list)
@@ -225,7 +227,8 @@
 
 
 
-
+#+debug
+(setf *features* (delete :debug *features*))
 
 
 
