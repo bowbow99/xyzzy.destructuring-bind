@@ -84,7 +84,10 @@
 (defparameter *rest-form* nil)
 (defparameter *rest-form-placeholder* nil)
 (defparameter *rest-var* nil)
-(defparameter *known-keys* nil)
+
+(defparameter *keyword-arguments-p* nil)
+(defparameter *known-keywords* nil)
+(defparameter *allow-other-keys-p* nil)
 
 (defun parse-lambda-list (lambda-list form)
   (declare (type list lambda-list))
@@ -103,7 +106,9 @@
            (*rest-var* nil)
            (*rest-form-placeholder* nil)
            (*rest-form* nil)
-           )
+           (*keyword-arguments-p* nil)
+           (*allow-other-keys-p* nil)
+           (*known-keywords* nil))
       (progn
         (do ((lambda-list lambda-list (cdr lambda-list)))
             ((null lambda-list))
@@ -128,6 +133,7 @@
         (setq forms (nsubst `(%assert-list-length ,*whole-form* ,*min-length* ,*max-length*)
                             *whole-form-placeholder* forms)
               forms (nsubst *rest-form* *rest-form-placeholder* forms))
+        #+debug (break "keywords: ~S" *known-keywords*)
         (values vars forms)))))
 
 
@@ -207,6 +213,8 @@
                             (list* sp-form value-form  forms))))
                 (values (list sp-var  var)
                         (list sp-form value-form)))
+            (setf *keyword-arguments-p* t
+                  *known-keywords* (cons keyword *known-keywords*))
             (values (append *vars  vars)
                     (append *forms forms)
                     *rest-var*)))))))
