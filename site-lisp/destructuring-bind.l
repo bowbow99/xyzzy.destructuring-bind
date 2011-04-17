@@ -74,8 +74,13 @@
 
 (defparameter *lambda-list* nil)
 
+(defparameter *whole-form-placeholder* nil)
+(defparameter *whole-form* nil)
 (defparameter *max-length* nil)
 (defparameter *min-length* nil)
+
+(defparameter *rest-form* nil)
+(defparameter *rest-form-placeholder* nil)
 (defparameter *rest-var* nil)
 (defparameter *known-keys* nil)
 
@@ -85,13 +90,18 @@
       (if (eql (car lambda-list) '&whole)
         (values (second lambda-list) (cddr lambda-list))
         (values (gensym "whole-")    lambda-list))
-    (let ((vars  (list whole-var))
-          (forms (list))
-          (tail  whole-var)
-          (state '&required)
-          (*rest-var* nil)
-          (*min-length* 0)
-          (*max-length* 0))
+    (let* ((vars  (list whole-var))
+           (*whole-form-placeholder* (gensym "$WHOLE-FORM-"))
+           (*whole-form* form)
+           (*min-length* 0)
+           (*max-length* 0)
+           (forms (list *whole-form-placeholder*))
+           (tail  whole-var)
+           (state '&required)
+           (*rest-var* nil)
+           (*rest-form-placeholder* nil)
+           (*rest-form* nil)
+           )
       (progn
         (do ((lambda-list lambda-list (cdr lambda-list)))
             ((null lambda-list))
@@ -113,9 +123,10 @@
                   (setq vars  (append vars vars%)
                         forms (append forms forms%)
                         tail  tail%))))))
-        (let ((whole-form `(%assert-list-length
-                            ,form ,*min-length* ,*max-length*)))
-          (values vars (cons whole-form forms)))))))
+        (setq forms (nsubst `(%assert-list-length ,*whole-form* ,*min-length* ,*max-length*)
+                            *whole-form-placeholder* forms)
+              forms (nsubst *rest-form* *rest-form-placeholder* forms))
+        (values vars forms)))))
 
 
 (defun parse-&required (param form)
@@ -154,9 +165,13 @@
         (if (consp param)
           (parse-lambda-list param rest-var))
       (setf *max-length* nil
-            *rest-var*   rest-var)
+            *rest-var*   rest-var
+            *rest-form-placeholder* (gensym "$REST-FORM-")
+            *rest-form*  form)
+      ;; `*rest-form-placeholder*` will be replaced with form stored
+      ;; in `*rest-form*`.
       (values (list* rest-var vars)
-              (list* form forms)
+              (list* *rest-form-placeholder* forms)
               rest-var))))
 
 (defun parse-&key (param form)
