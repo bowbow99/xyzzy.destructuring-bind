@@ -98,6 +98,23 @@
       (loop for x in examples
         do (assert-keyword-list t x)))))
 
+(define-test %assert-keyword-list-suppressing-unknown-key-checking
+  (let ((*allowed-keywords* '(:foo :bar :baz)))
+    (let ((*allow-other-keys* t))
+      (loop for x in '((:foo 1 :a 1)
+                       (:foo 1 :a 1 :allow-other-keys t)
+                       (:foo 1 :a 1 :allow-other-keys nil)
+                       (:foo 1 :a 1 :allow-other-keys t :allow-other-keys nil)
+                       (:foo 1 :a 1 :allow-other-keys nil :allow-other-keys t))
+        do (assert-keyword-list t x)))
+    (let ((*allow-other-keys* nil))
+      (loop for x in '((:foo 1 :a 1)
+                       (:foo 1 :a 1 :allow-other-keys nil)
+                       (:foo 1 :a 1 :allow-other-keys nil :allow-other-keys t))
+        do (assert-keyword-list nil x))
+      (loop for x in '((:foo 1 :a 1 :allow-other-keys t)
+                       (:foo 1 :a 1 :allow-other-keys t :allow-other-keys nil))
+        do (assert-keyword-list t x)))))
 
 ;;;;
 ;;;; * &required
