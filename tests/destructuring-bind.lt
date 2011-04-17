@@ -343,5 +343,26 @@
           '(:a 1 :b 2 :c 3)
         (list a b))))
 
+;;;;
+;;;; * &allow-other-keys
+
+(define-test &allow-other-keys
+  (assert-equal '(nil nil)
+      (destructuring-bind (&key a b &allow-other-keys)
+          '(:foo 1)
+        (list a b)))
+  (assert-equal '(1 nil)
+      (destructuring-bind (&key a b &allow-other-keys)
+          '(:a 1 :foo 1)
+        (list a b)))
+  (assert-equal '(1 2)
+      (destructuring-bind (&key a b &allow-other-keys)
+          '(:a 1 :b 2 :foo 3)
+        (list a b)))
+  (assert-equal '(nil 2)
+      (destructuring-bind (&key a b &allow-other-keys)
+          '(:b 2 :foo 3)
+        (list a b)))
+  )
 
 
