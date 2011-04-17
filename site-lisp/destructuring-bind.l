@@ -148,10 +148,13 @@
             (setq lambda-list (list nil '&rest lambda-list))
             (with-ca/dr (x rest) lambda-list
               (if (member x *destructuring-lambda-list-keywords*)
+                ;; FIXME: lambda list keywords must be in specific order
+                ;; i.e. This is invalid: (a &rest b &optional c &aux d &key &allow-other-keys e)
                 (case x
                   ((&optional &rest &body &key)
                    (setq state x))
-                  ((&allow-other-keys))
+                  ((&allow-other-keys)
+                   (setq *allow-other-keys-p* t))
                   ((&aux)))
                 (multiple-value-bind (vars% forms% tail%)
                     (funcall (or (cdr (assoc state *state/parser-alist*))
