@@ -420,7 +420,6 @@
           '(:b 2)
         (list all a b))))
 
-
 ;;;;
 ;;;; * &allow-other-keys
 
@@ -440,7 +439,30 @@
   (assert-equal '(nil 2)
       (destructuring-bind (&key a b &allow-other-keys)
           '(:b 2 :foo 3)
-        (list a b)))
-  )
+        (list a b))))
 
 
+;;;;
+;;;; * &aux
+
+(define-test &aux-basic
+  (assert-equal '(1 2 3)
+      (destructuring-bind (&aux (a 1) (b 2) (c 3))
+          nil
+        (list a b c)))
+  (assert-equal '(1 2 nil)
+      (destructuring-bind (&aux (a 1) (b 2) c)
+          nil
+        (list a b c)))
+  (assert-equal '(1 nil 3)
+      (destructuring-bind (&aux (a 1) b (c 3))
+          nil
+        (list a b c))))
+
+(define-test &aux-cant-destructure
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&aux ((a b) '(1 2)))
+          nil
+        (list a b))))
+
+;;; tests/destructuring-bind.lt ends here.
