@@ -19,6 +19,7 @@
 (defun %bool (x)
   (not (null x)))
 
+(defconstant +constant+ '#:dummy)
 
 ;;;;
 ;;;; * Utilities: %assert-keyword-list
@@ -464,5 +465,22 @@
       (destructuring-bind (&aux ((a b) '(1 2)))
           nil
         (list a b))))
+
+(define-test &aux-param-must-be-a-variable
+  ;; no init-form
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&aux 1) nil 1))
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&aux "hello") nil "hello"))
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&aux +constant+) nil +constant+))
+  ;; with init-form
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&aux (1 1)) nil 1))
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&aux ("hello" "world")) nil "hello"))
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&aux (+constant+ :const)) nil +constant+)))
+
 
 ;;; tests/destructuring-bind.lt ends here.
