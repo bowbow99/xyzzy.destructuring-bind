@@ -557,7 +557,6 @@
   (assert-lambda-list-validity nil (&aux &optional a))
   (assert-lambda-list-validity nil (&aux &rest a))
   (assert-lambda-list-validity nil (&aux &key a))
-  (assert-lambda-list-validity nil (&aux &allow-other-keys))
   (assert-lambda-list-validity nil (&aux &aux a)))
 
 
