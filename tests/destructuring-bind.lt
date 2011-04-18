@@ -442,6 +442,49 @@
           '(:b 2 :foo 3)
         (list a b))))
 
+(define-test &allow-other-keys--no-more-params-other-than-&aux
+  ;; keyword parameters
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&key &allow-other-keys a) nil a))
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&key &allow-other-keys (a 1)) nil a))
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&key &allow-other-keys ((:a b) 1))
+          '(:a 2)
+        (list b)))
+  ;; &whole
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&key a &allow-other-keys &whole whole)
+          '(:a 1)
+        (list whole a)))
+  ;; &optional
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&key a &allow-other-keys &optional (b 3))
+          (list a b)))
+  ;; &rest
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&key a &allow-other-keys &rest b)
+          '(:a 2)
+        (list a b)))
+  ;; &key again
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&key a &allow-other-keys &key b)
+          '(:a 1 :b 2)
+        (list a b)))
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&key a &allow-other-keys &key (b 2))
+          '(:a 1)
+        (list a b)))
+  ;; &allow-other-keys again
+  (assert-error 'invalid-lambda-list
+      (destructuring-bind (&key a &allow-other-keys &allow-other-keys)
+          '(:a 1)
+        (list a)))
+  ;; &aux
+  (assert-equal '(1 2)
+      (destructuring-bind (&key a &allow-other-keys &aux (b 2))
+          '(:a 1 :b 2 :c 3)
+        (list a b))))
 
 ;;;;
 ;;;; * &aux
