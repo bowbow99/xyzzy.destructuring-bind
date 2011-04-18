@@ -72,8 +72,15 @@
 (defmacro !invalid-lambda-list ()
   `(error 'invalid-lambda-list :datum *lambda-list*))
 
-(defparameter *destructuring-lambda-list-keywords*
-  (list &optional &rest &key &aux &body &whole &environment &allow-other-keys))
+
+(defconstant &required '&required)
+
+;; FIXME: should be constant (using `defparameter` 'cos maybe I change my mind...)
+;; NOTE: `&required` and `&environment` are actually not a lambda-list keyword
+;; that can be used, but included for checking presense and/or order of them with
+;; `(member x ...)`. see `parse-lambda-list`.
+(defparameter +destructuring-lambda-list-keywords+
+  (list &required &whole &optional &rest &key &allow-other-keys &aux &environment))
 
 (defun %assert-list-length (list min max)
   (declare (type list list)
@@ -153,14 +160,15 @@
             ; lambda-list was a dotted-list
             (setq lambda-list (list nil '&rest lambda-list))
             (with-ca/dr (x rest) lambda-list
-              (if (member x *destructuring-lambda-list-keywords*)
-                ;; FIXME: lambda list keywords must be in specific order
-                ;; i.e. This is invalid: (a &rest b &optional c &aux d &key &allow-other-keys e)
-                (case x
-                  ((&optional &rest &body &key &aux)
-                   (setq state x))
-                  ((&allow-other-keys)
-                   (setq *allow-other-keys-p* t)))
+              (if (member x +destructuring-lambda-list-keywords+)
+                (progn
+                  (unless (member x (cdr (member state +destructuring-lambda-list-keywords+)))
+                    (!invalid-lambda-list))
+                  (case x
+                    ((&optional &rest &body &key &aux)
+                     (setq state x))
+                    ((&allow-other-keys)
+                     (setq *allow-other-keys-p* t))))
                 (multiple-value-bind (vars% forms% tail%)
                     (funcall (or (cdr (assoc state *state/parser-alist*))
                                  (error "No parser found for state `~S'."
