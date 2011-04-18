@@ -537,7 +537,7 @@
   (assert-lambda-list-validity t (&aux a b))
   (assert-lambda-list-validity t (&aux a b c)))
 
-(define-test &aux--basic
+(define-test &aux-bindings
   (assert-equal '(1 2 3)
       (destructuring-bind (&aux (a 1) (b 2) (c 3))
           nil
@@ -551,7 +551,7 @@
           nil
         (list a b c))))
 
-(define-test &aux--no-more-lambda-list-keywords
+(define-test &aux-after
   ;; No lambda-list keyword allowed after &aux
   (assert-lambda-list-validity nil (&aux &whole a))
   (assert-lambda-list-validity nil (&aux &optional a))
