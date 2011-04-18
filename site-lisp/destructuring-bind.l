@@ -168,7 +168,9 @@
                     ((&optional &rest &body &key &aux)
                      (setq state x))
                     ((&allow-other-keys)
-                     (setq *allow-other-keys-p* t))))
+                     (setq *allow-other-keys-p* t))
+                    ((&required &environment)
+                     (!invalid-lambda-list))))
                 (multiple-value-bind (vars% forms% tail%)
                     (funcall (or (cdr (assoc state *state/parser-alist*))
                                  (error "No parser found for state `~S'."
