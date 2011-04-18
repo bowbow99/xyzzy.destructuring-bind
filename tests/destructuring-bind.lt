@@ -21,6 +21,15 @@
 
 (defconstant +constant+ '#:dummy)
 
+(defmacro assert-invalid-lambda-list (list-form &rest lambda-lists)
+  `(progn
+     ,@(mapcar (lambda (ll)
+                 `(assert-error 'invalid-lambda-list
+                      (destructuring-bind ,ll ,list-form t)))
+         lambda-lists)))
+#+xyzzy
+(setf (get 'assert-invalid-lambda-list 'ed:lisp-indent-hook) 1)
+
 ;;;;
 ;;;; * Utilities: %assert-keyword-list
 (import 'destructuring-bind::%assert-keyword-list)
@@ -509,34 +518,24 @@
           nil
         (list a b))))
 
-(define-test &aux-param-must-be-a-variable
-  ;; no init-form
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux 1) nil 1))
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux "hello") nil "hello"))
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux +constant+) nil +constant+))
-  ;; with init-form
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux (1 1)) nil 1))
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux ("hello" "world")) nil "hello"))
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux (+constant+ :const)) nil +constant+)))
+(define-test &aux--non-variable-param
+  (assert-invalid-lambda-list nil
+    (&aux 1)
+    (&aux "hello")
+    (&aux +constant+))
+  (assert-invalid-lambda-list nil
+    (&aux (1 1))
+    (&aux ("hello" "world"))
+    (&aux (+constant+ :const))))
 
-(define-test &aux-nothing-allowed-to-follow
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux (a 1) &whole b) nil (list a b)))
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux (a 1) &optional b) nil (list a b)))
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux (a 1) &rest b) nil (list a b)))
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux (a 1) &key b) nil (list a b)))
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux (a 1) &allow-other-keys) nil (list a)))
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux (a 1) &aux (b 2)) nil (list a b))))
+(define-test &aux--no-more-lambda-list-keywords
+  (assert-invalid-lambda-list nil
+    (&aux (a 1) &whole b)
+    (&aux (a 1) &optional b)
+    (&aux (a 1) &rest b)
+    (&aux (a 1) &key b)
+    (&aux (a 1) &allow-other-keys)
+    (&aux (a 1) &aux (b 2))))
+
 
 ;;; tests/destructuring-bind.lt ends here.
