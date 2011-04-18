@@ -145,20 +145,23 @@
       (if (eql (car lambda-list) '&whole)
         (values (second lambda-list) (cddr lambda-list))
         (values (gensym "whole-")    lambda-list))
-    (let* ((vars  (list whole-var))
+    (let* (;; for &whole
            (*whole-form-placeholder* (gensym "$WHOLE-FORM-"))
            (*whole-form* form)
            (*min-length* 0)
            (*max-length* 0)
-           (forms (list *whole-form-placeholder*))
-           (tail  whole-var)
-           (state '&required)
+           ;; for &rest/&key
            (*rest-var* nil)
            (*rest-form-placeholder* nil)
            (*rest-form* nil)
            (*keyword-arguments-p* nil)
            (*allow-other-keys-p* nil)
-           (*known-keywords* nil))
+           (*known-keywords* nil)
+           ;; misc
+           (vars  (list whole-var))
+           (forms (list *whole-form-placeholder*))
+           (tail  whole-var)
+           (state '&required))
       (progn
         (do ((lambda-list lambda-list (cdr lambda-list)))
             ((null lambda-list))
