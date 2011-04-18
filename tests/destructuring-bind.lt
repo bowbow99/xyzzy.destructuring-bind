@@ -146,6 +146,46 @@
         do (assert-keyword-list t x)))))
 
 ;;;;
+;;;; * &whole
+
+(define-test &whole-parameter--atomic
+  (assert-lambda-list-validity t (&whole var))
+  (progn
+    (assert-lambda-list-validity nil (&whole "foo"))
+    (assert-lambda-list-validity nil (&whole 123))))
+
+(define-test &whole-parameter--compound
+  ;; when &whole parameter is a list, it is destructuring-pattern
+  (assert-lambda-list-validity t (&whole (a)))
+  (assert-lambda-list-validity t (&whole (a b)))
+  (assert-lambda-list-validity t (&whole (a b . c))))
+
+(define-test &whole-parameter--number-of-parameters
+  (assert-lambda-list-validity nil (&whole))
+  (assert-lambda-list-validity t (&whole a))
+  ;; NOTE: you can put more than one parameter after &whole, but those
+  ;; are treated as &required parameter except first one.
+  (assert-lambda-list-validity t (&whole a b)))
+
+(define-test &whole-bindings
+  (assert-equal nil
+      (destructuring-bind (&whole x) nil x))
+  (assert-equal '(1 2)
+      (destructuring-bind (&whole x &rest y) '(1 2) x))
+  (assert-equal '(1 2 :d 1 :c 2)
+      (destructuring-bind (&whole x a b &key c d)
+          '(1 2 :d 1 :c 2)
+        x)))
+
+(define-test &whole-next
+  (assert-lambda-list-validity t (&whole a &optional b))
+  (assert-lambda-list-validity t (&whole a &rest b))
+  (assert-lambda-list-validity t (&whole a &key))
+  (assert-lambda-list-validity t (&whole a &key))
+  (assert-lambda-list-validity t (&whole a &aux)))
+
+
+;;;;
 ;;;; * &required
 
 (define-test &required
