@@ -279,8 +279,9 @@
 (defun parse-&aux (param form)
   (cond
    ((consp param)
-    (with-places (first second) param
-      (unless (variablep first)
+    (with-places (first second cddr) param
+      (unless (and (variablep first)
+                   (null cddr))
         (!invalid-lambda-list))
       (values (list first) (list second))))
    ((variablep param)
