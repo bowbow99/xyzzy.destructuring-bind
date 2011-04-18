@@ -500,6 +500,36 @@
 ;;;;
 ;;;; * &aux
 
+(define-test &aux-parameter--atomic
+  ;; just variable
+  (assert-lambda-list-validity t (&aux var))
+  (progn
+    ;; var must be a variable
+    (assert-lambda-list-validity nil (&aux "var"))
+    (assert-lambda-list-validity nil (&aux :var))))
+
+(define-test &aux-parameter--compound
+  ;; var with init-form
+  (assert-lambda-list-validity t (&aux (var value)))
+  (progn
+    ;; var must be variable
+    (assert-lambda-list-validity nil (&aux ("var" value)))
+    (assert-lambda-list-validity nil (&aux (:var  value)))
+    ;; destructuring is not allowed here
+    (assert-lambda-list-validity nil (&aux ((a b) value)))
+    (assert-lambda-list-validity nil (&aux ((a . b) value))))
+  (progn
+    ;; init-form can be omitted
+    (assert-lambda-list-validity t (&aux (var)))
+    ;; init-form can be any form
+    (assert-lambda-list-validity t (&aux (var (foo (bar baz)))))
+    (assert-lambda-list-validity t (&aux (var "value")))
+    (assert-lambda-list-validity t (&aux (var :value))))
+  (progn
+    ;; there's no room for other things
+    (assert-lambda-list-validity nil (&aux (var value FOO)))
+    (assert-lambda-list-validity nil (&aux (var value FOO BAR)))))
+
 (define-test &aux--basic
   (assert-equal '(1 2 3)
       (destructuring-bind (&aux (a 1) (b 2) (c 3))
@@ -514,28 +544,8 @@
           nil
         (list a b c))))
 
-(define-test &aux--cant-destructure
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux ((a b) '(1 2)))
-          nil
-        (list a b))))
-
-(define-test &aux--non-variable-param
-  (assert-invalid-lambda-list
-    (&aux 1)
-    (&aux "hello")
-    (&aux +constant+))
-  (assert-invalid-lambda-list
-    (&aux (1 1))
-    (&aux ("hello" "world"))
-    (&aux (+constant+ :const))))
-
-(define-test &aux--too-many-things
-  (assert-invalid-lambda-list
-    (&aux (a 1 b))
-    (&aux (a 1 b c d))))
-
 (define-test &aux--no-more-lambda-list-keywords
+  ;; No lambda-list keyword allowed after &aux
   (assert-invalid-lambda-list
     (&aux (a 1) &whole b)
     (&aux (a 1) &optional b)
