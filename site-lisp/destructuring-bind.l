@@ -264,10 +264,16 @@
                     *rest-var*)))))))
 
 (defun parse-&aux (param form)
-  (if (consp param)
+  (cond
+   ((consp param)
     (with-places (first second) param
-      (values (list first) (list second)))
-    (values (list param) (list nil))))
+      (unless (variablep first)
+        (!invalid-lambda-list))
+      (values (list first) (list second))))
+   ((variablep param)
+    (values (list param) (list nil)))
+   (t
+    (!invalid-lambda-list))))
 
 
 (defmacro lisp:destructuring-bind (lambda-list expr &body body)
