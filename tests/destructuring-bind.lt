@@ -528,6 +528,11 @@
     (&aux ("hello" "world"))
     (&aux (+constant+ :const))))
 
+(define-test &aux--too-many-things
+  (assert-invalid-lambda-list nil
+    (&aux (a 1 b))
+    (&aux (a 1 b c d))))
+
 (define-test &aux--no-more-lambda-list-keywords
   (assert-invalid-lambda-list nil
     (&aux (a 1) &whole b)
