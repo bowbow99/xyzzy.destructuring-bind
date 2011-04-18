@@ -38,6 +38,17 @@
 (setf (get 'assert-invalid-lambda-list 'ed:lisp-indent-hook) 0
       (get 'assert-valid-lambda-list 'ed:lisp-indent-hook) 0)
 
+
+(defmacro assert-lambda-list-validity (valid lambda-list)
+  (let ((expand-form `(macroexpand-1 '(destructuring-bind ,lambda-list nil))))
+  (if valid
+    `(assert-true (multiple-value-bind (expansion expand?)
+                      ,expand-form
+                    expand?))
+    `(assert-error 'invalid-lambda-list ,expand-form))))
+#+xyzzy
+(setf (get 'assert-lambda-list-validity 'ed:lisp-indent-hook) 2)
+
 ;;;;
 ;;;; * Utilities: %assert-keyword-list
 (import 'destructuring-bind::%assert-keyword-list)
