@@ -530,6 +530,13 @@
     (assert-lambda-list-validity nil (&aux (var value FOO)))
     (assert-lambda-list-validity nil (&aux (var value FOO BAR)))))
 
+(define-test &aux-parameter--number-of-parameters
+  ;; you can put any number of parameters in &aux
+  (assert-lambda-list-validity t (&aux))
+  (assert-lambda-list-validity t (&aux a))
+  (assert-lambda-list-validity t (&aux a b))
+  (assert-lambda-list-validity t (&aux a b c)))
+
 (define-test &aux--basic
   (assert-equal '(1 2 3)
       (destructuring-bind (&aux (a 1) (b 2) (c 3))
