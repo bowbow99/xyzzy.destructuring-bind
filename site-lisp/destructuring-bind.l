@@ -53,6 +53,9 @@
 #+xyzzy
 (setf (get 'with-places 'ed:lisp-indent-hook) 2)
 
+(defun variablep (x)
+  (and (symbolp x) (not (constantp x))))
+
 ;; modified version of http://paste.lisp.org/display/24480
 (defun proper-list-p (object)
   (if (null object) t
@@ -65,6 +68,9 @@
                  ((null (cdr fast)) (return t))
                  ((atom (cdr fast)) (return nil))
                  ((eql fast slow) (return nil)))))))
+
+(defmacro !invalid-lambda-list ()
+  `(error 'invalid-lambda-list :datum *lambda-list*))
 
 (defparameter *destructuring-lambda-list-keywords*
   (list &optional &rest &key &aux &body &whole &environment &allow-other-keys))
