@@ -142,9 +142,7 @@
 (defun parse-lambda-list (lambda-list form)
   (declare (type list lambda-list))
   (multiple-value-bind (whole-var lambda-list)
-      (if (eql (car lambda-list) '&whole)
-        (values (second lambda-list) (cddr lambda-list))
-        (values (gensym "whole-")    lambda-list))
+      (parse-&whole lambda-list)
     (let* (;; for &whole
            (*whole-form-placeholder* (gensym "$WHOLE-FORM-"))
            (*whole-form* form)
@@ -203,6 +201,11 @@
         #+debug (break "keywords: ~S" *known-keywords*)
         (values vars forms)))))
 
+;; NOTE: this one has bit different interface than other parse-*.
+(defun parse-&whole (lambda-list)
+  (if (eql (car lambda-list) '&whole)
+    (values (second lambda-list) (cddr lambda-list))
+    (values (gensym "whole-")    lambda-list)))
 
 (defun parse-&required (param form)
   (multiple-value-bind (vars forms)
