@@ -480,17 +480,11 @@
     (&key &allow-other-keys &optional a &rest b)
     (&key &allow-other-keys &rest a)
     (&key &allow-other-keys &key a b)
-    (&key &allow-other-keys &allow-other-keys)))
-
-(define-test &allow-other-keys--&aux-is-allowed
-  (assert-equal '(1 2 3)
-      (destructuring-bind (&key a b &aux (c 3))
-          '(:a 1 :b 2)
-        (list a b c)))
-  (assert-equal '(1 nil 3)
-      (destructuring-bind (&key a b &aux (c 3))
-          '(:a 1)
-        (list a b c))))
+    (&key &allow-other-keys &allow-other-keys))
+  (assert-valid-lambda-list
+    (&key a b &allow-other-keys &aux)
+    (&key a b &allow-other-keys &aux c)
+    (&key a b &allow-other-keys &aux c d)))
 
 ;;;;
 ;;;; * &aux
