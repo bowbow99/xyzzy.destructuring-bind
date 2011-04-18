@@ -21,14 +21,22 @@
 
 (defconstant +constant+ '#:dummy)
 
-(defmacro assert-invalid-lambda-list (list-form &rest lambda-lists)
+(defmacro assert-invalid-lambda-list (&rest lambda-lists)
   `(progn
      ,@(mapcar (lambda (ll)
                  `(assert-error 'invalid-lambda-list
-                      (destructuring-bind ,ll ,list-form t)))
+                      (macroexpand-1 '(destructuring-bind ,ll nil t))))
+         lambda-lists)))
+
+(defmacro assert-valid-lambda-list (&rest lambda-lists)
+  `(progn
+     ,@(mapcar (lambda (ll)
+                 `(assert-true
+                      (macroexpand-1 '(destructuring-bind ,ll nil t))))
          lambda-lists)))
 #+xyzzy
-(setf (get 'assert-invalid-lambda-list 'ed:lisp-indent-hook) 1)
+(setf (get 'assert-invalid-lambda-list 'ed:lisp-indent-hook) 0
+      (get 'assert-valid-lambda-list 'ed:lisp-indent-hook) 0)
 
 ;;;;
 ;;;; * Utilities: %assert-keyword-list
@@ -452,14 +460,14 @@
         (list a b))))
 
 (define-test &allow-other-keys--without-&key
-  (assert-invalid-lambda-list nil
+  (assert-invalid-lambda-list
     (&allow-other-keys)
     (a &optional &allow-other-keys)
     (a &optional b &allow-other-keys)
     (a &optional b &rest c &allow-other-keys)))
 
 (define-test &allow-other-keys--after
-  (assert-invalid-lambda-list nil
+  (assert-invalid-lambda-list
     ;; parameter
     (&key &allow-other-keys a)
     (&key &allow-other-keys (a 1))
@@ -508,22 +516,22 @@
         (list a b))))
 
 (define-test &aux--non-variable-param
-  (assert-invalid-lambda-list nil
+  (assert-invalid-lambda-list
     (&aux 1)
     (&aux "hello")
     (&aux +constant+))
-  (assert-invalid-lambda-list nil
+  (assert-invalid-lambda-list
     (&aux (1 1))
     (&aux ("hello" "world"))
     (&aux (+constant+ :const))))
 
 (define-test &aux--too-many-things
-  (assert-invalid-lambda-list nil
+  (assert-invalid-lambda-list
     (&aux (a 1 b))
     (&aux (a 1 b c d))))
 
 (define-test &aux--no-more-lambda-list-keywords
-  (assert-invalid-lambda-list nil
+  (assert-invalid-lambda-list
     (&aux (a 1) &whole b)
     (&aux (a 1) &optional b)
     (&aux (a 1) &rest b)
