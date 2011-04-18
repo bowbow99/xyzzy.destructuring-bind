@@ -546,13 +546,12 @@
 
 (define-test &aux--no-more-lambda-list-keywords
   ;; No lambda-list keyword allowed after &aux
-  (assert-invalid-lambda-list
-    (&aux (a 1) &whole b)
-    (&aux (a 1) &optional b)
-    (&aux (a 1) &rest b)
-    (&aux (a 1) &key b)
-    (&aux (a 1) &allow-other-keys)
-    (&aux (a 1) &aux (b 2))))
+  (assert-lambda-list-validity nil (&aux &whole a))
+  (assert-lambda-list-validity nil (&aux &optional a))
+  (assert-lambda-list-validity nil (&aux &rest a))
+  (assert-lambda-list-validity nil (&aux &key a))
+  (assert-lambda-list-validity nil (&aux &allow-other-keys))
+  (assert-lambda-list-validity nil (&aux &aux a)))
 
 
 ;;; tests/destructuring-bind.lt ends here.
