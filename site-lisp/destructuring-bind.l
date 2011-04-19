@@ -133,12 +133,6 @@
 (defparameter *known-keywords* nil)
 (defparameter *allow-other-keys-p* nil)
 
-(defun ensure-&whole-param (lambda-list)
-  (declare (list lambda-list))
-  (if (eql (car lambda-list) '&whole)
-    lambda-list
-    (append (list '&whole (gensym "whole-")) lambda-list)))
-
 (defun parse-lambda-list (lambda-list form)
   (declare (type list lambda-list))
   (let* (;; for &whole
