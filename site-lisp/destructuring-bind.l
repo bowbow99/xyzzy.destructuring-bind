@@ -133,67 +133,101 @@
 (defparameter *known-keywords* nil)
 (defparameter *allow-other-keys-p* nil)
 
+(defun ensure-&whole-param (lambda-list)
+  (declare (list lambda-list))
+  (if (eql (car lambda-list) '&whole)
+    lambda-list
+    (append (list '&whole (gensym "whole-")) lambda-list)))
+
 (defun parse-lambda-list (lambda-list form)
   (declare (type list lambda-list))
-  (multiple-value-bind (whole-var lambda-list)
-      (if (eql (car lambda-list) '&whole)
-        (values (second lambda-list) (cddr lambda-list))
-        (values (gensym "whole-")    lambda-list))
-    (let* ((vars  (list whole-var))
-           (*whole-form-placeholder* (gensym "$WHOLE-FORM-"))
-           (*whole-form* form)
-           (*min-length* 0)
-           (*max-length* 0)
-           (forms (list *whole-form-placeholder*))
-           (tail  whole-var)
-           (state '&required)
-           (*rest-var* nil)
-           (*rest-form-placeholder* nil)
-           (*rest-form* nil)
-           (*keyword-arguments-p* nil)
-           (*allow-other-keys-p* nil)
-           (*known-keywords* nil))
-      (progn
-        (do ((lambda-list lambda-list (cdr lambda-list)))
-            ((null lambda-list))
-          (if (symbolp lambda-list)
-            ; lambda-list was a dotted-list
-            (setq lambda-list (list nil '&rest lambda-list))
-            (with-ca/dr (x rest) lambda-list
-              (if (member x +destructuring-lambda-list-keywords+)
-                (progn
-                  (unless (member x (cdr (member state +destructuring-lambda-list-keywords+)))
-                    (!invalid-lambda-list))
-                  (case x
-                    ((&optional &rest &body &key &aux)
-                     (setq state x))
-                    ((&allow-other-keys)
-                     (setq *allow-other-keys-p* t)
-                     (unless (and (eql state '&key)
-                                  (or (null rest)
-                                      (eql (car rest) '&aux)))
-                       (!invalid-lambda-list)))
-                    ((&required &environment)
-                     (!invalid-lambda-list))))
-                (multiple-value-bind (vars% forms% tail%)
-                    (funcall (or (cdr (assoc state *state/parser-alist*))
-                                 (error "No parser found for state `~S'."
-                                        state))
-                             x tail)
-                  (setq vars  (append vars vars%)
-                        forms (append forms forms%)
-                        tail  tail%))))))
-        (setq forms (subst `(%assert-list-length
-                             ,*whole-form* ,*min-length* ,*max-length*)
-                           *whole-form-placeholder* forms)
-              forms (subst (if (not *keyword-arguments-p*)
-                             *rest-form*
-                             `(%assert-keyword-list
-                               ,*rest-form* ',*known-keywords* ,*allow-other-keys-p*))
-                           *rest-form-placeholder* forms))
-        #+debug (break "keywords: ~S" *known-keywords*)
-        (values vars forms)))))
+  (let* (;; for &whole
+         (*whole-form-placeholder* nil)
+         (*whole-form* nil)
+         (*min-length* 0)
+         (*max-length* 0)
+         ;; for &rest/&key
+         (*rest-var* nil)
+         (*rest-form-placeholder* nil)
+         (*rest-form* nil)
+         (*keyword-arguments-p* nil)
+         (*allow-other-keys-p* nil)
+         (*known-keywords* nil)
+         ;; misc
+         (vars  nil)
+         (forms nil)
+         (tail  nil)
+         (state '&required))
+    (multiple-value-setq (vars forms tail lambda-list)
+        (parse-&whole lambda-list form))
+    (progn
+      (do ((lambda-list lambda-list (cdr lambda-list)))
+          ((null lambda-list))
+        (if (symbolp lambda-list)
+          ; lambda-list was a dotted-list
+          (setq lambda-list (list nil '&rest lambda-list))
+          (with-ca/dr (x rest) lambda-list
+            (if (member x +destructuring-lambda-list-keywords+)
+              (progn
+                (unless (member x (cdr (member state +destructuring-lambda-list-keywords+)))
+                  (!invalid-lambda-list))
+                (case x
+                  ((&optional &rest &body &key &aux)
+                   (setq state x))
+                  ((&allow-other-keys)
+                   (setq *allow-other-keys-p* t)
+                   (unless (and (eql state '&key)
+                                (or (null rest)
+                                    (eql (car rest) '&aux)))
+                     (!invalid-lambda-list)))
+                  ((&required &environment)
+                   (!invalid-lambda-list))))
+              (multiple-value-bind (vars% forms% tail%)
+                  (funcall (or (cdr (assoc state *state/parser-alist*))
+                               (error "No parser found for state `~S'."
+                                      state))
+                           x tail)
+                (setq vars  (append vars vars%)
+                      forms (append forms forms%)
+                      tail  tail%))))))
+      (setq forms (subst `(%assert-list-length
+                           ,*whole-form* ,*min-length* ,*max-length*)
+                         *whole-form-placeholder* forms)
+            forms (subst (if (not *keyword-arguments-p*)
+                           *rest-form*
+                           `(%assert-keyword-list
+                             ,*rest-form* ',*known-keywords* ,*allow-other-keys-p*))
+                         *rest-form-placeholder* forms))
+      #+debug (break "keywords: ~S" *known-keywords*)
+      (values vars forms))))
 
+;; NOTE: this one has bit different interface than other parse-*.
+;; - 1st arg: takes entire LAMBDA-LIST rather than one PARAMETER in issue
+;; - 4th value: returns (possibly modified) LAMBDA-LIST
+(defun parse-&whole (lambda-list form)
+  (let ((placeholder (gensym "$WHOLE-FORM-")))
+    (multiple-value-bind (whole-var lambda-list vars forms)
+        (cond
+         ;; No &whole
+         ((not (eql (car lambda-list) '&whole))
+          (values (gensym "whole-") lambda-list))
+         ;; &whole VARIABLE
+         ((variablep (second lambda-list))
+          (values (second lambda-list) (cddr lambda-list)))
+         ;; &whole (PA TT . ERN)
+         ((consp (second lambda-list))
+          (let ((whole-var (gensym "whole-")))
+            (multiple-value-bind (vars forms)
+                (parse-lambda-list (second lambda-list) whole-var)
+              (values whole-var (cddr lambda-list) vars forms))))
+         (t
+          (!invalid-lambda-list)))
+      (setf *whole-form-placeholder* placeholder
+            *whole-form* form)
+      (values (cons whole-var vars)
+              (cons placeholder forms)
+              whole-var
+              lambda-list))))
 
 (defun parse-&required (param form)
   (multiple-value-bind (vars forms)
