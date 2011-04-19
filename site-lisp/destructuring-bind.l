@@ -202,31 +202,30 @@
       (values vars forms))))
 
 ;; NOTE: this one has bit different interface than other parse-*.
+;; - 1st arg: takes entire LAMBDA-LIST rather than one PARAMETER in issue
+;; - 4th value: returns (possibly modified) LAMBDA-LIST
 (defun parse-&whole (lambda-list form)
   (let ((placeholder (gensym "$WHOLE-FORM-")))
-    (setq *whole-form-placeholder* placeholder
-          *whole-form* form))
-  (if (eql (car lambda-list) '&whole)
-    (let ((whole-param (second lambda-list))
-          (lambda-list (cddr lambda-list)))
-      (cond ((variablep whole-param)
-             (values (list whole-param)
-                     (list *whole-form-placeholder*)
-                     whole-param
-                     lambda-list))
-            ((consp whole-param)
-             (let ((whole-var (gensym "whole-")))
-               (multiple-value-bind (vars forms)
-                   (parse-lambda-list whole-param whole-var)
-                 (values (cons whole-var vars)
-                         (cons *whole-form-placeholder* forms)
-                         whole-var
-                         lambda-list))))
-            (t
-             (!invalid-lambda-list))))
-    (let ((whole-var (gensym "whole-")))
-      (values (list whole-var)
-              (list *whole-form-placeholder*)
+    (multiple-value-bind (whole-var lambda-list vars forms)
+        (cond
+         ;; No &whole
+         ((not (eql (car lambda-list) '&whole))
+          (values (gensym "whole-") lambda-list))
+         ;; &whole VARIABLE
+         ((variablep (second lambda-list))
+          (values (second lambda-list) (cddr lambda-list)))
+         ;; &whole (PA TT . ERN)
+         ((consp (second lambda-list))
+          (let ((whole-var (gensym "whole-")))
+            (multiple-value-bind (vars forms)
+                (parse-lambda-list (second lambda-list) whole-var)
+              (values whole-var (cddr lambda-list) vars forms))))
+         (t
+          (!invalid-lambda-list)))
+      (setf *whole-form-placeholder* placeholder
+            *whole-form* form)
+      (values (cons whole-var vars)
+              (cons placeholder forms)
               whole-var
               lambda-list))))
 
