@@ -1,0 +1,30 @@
+;;; -*- mode: lisp; package: test.destructuring-bind.invalid-lambda-list -*-
+;;;
+;;; tests/destructuring-bind/invalid-lambda-list.lt
+;;;
+
+;;; Code:
+
+(require "destructuring-bind")
+(require "lisp-unit")
+
+(defpackage :test.destructuring-bind.invalid-lambda-list
+  (:use :lisp :lisp-unit))
+
+(in-package :test.destructuring-bind.invalid-lambda-list)
+
+(remove-all-tests :test.destructuring-bind.invalid-lambda-list)
+
+
+(defmacro assert-lambda-list-validity (valid-p lambda-list)
+  (let ((expand-form `(macroexpand-1 '(destructuring-bind ,lambda-list nil nil))))
+    (if valid-p
+      `(assert-true (multiple-value-bind (#:expn #1=#:p) ,expand-form #1#))
+      `(assert-error 'invalid-lambda-list ,expand-form))))
+
+
+
+
+
+
+
