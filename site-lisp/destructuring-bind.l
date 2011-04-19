@@ -207,10 +207,23 @@
     (setq *whole-form-placeholder* placeholder
           *whole-form* form))
   (if (eql (car lambda-list) '&whole)
-    (values (list (second lambda-list))
-            (list *whole-form-placeholder*)
-            (second lambda-list)
-            (cddr lambda-list))
+    (let ((whole-param (second lambda-list))
+          (lambda-list (cddr lambda-list)))
+      (cond ((variablep whole-param)
+             (values (list whole-param)
+                     (list *whole-form-placeholder*)
+                     whole-param
+                     lambda-list))
+            ((consp whole-param)
+             (let ((whole-var (gensym "whole-")))
+               (multiple-value-bind (vars forms)
+                   (parse-lambda-list whole-param whole-var)
+                 (values (cons whole-var vars)
+                         (cons *whole-form-placeholder* forms)
+                         whole-var
+                         lambda-list))))
+            (t
+             (!invalid-lambda-list))))
     (let ((whole-var (gensym "whole-")))
       (values (list whole-var)
               (list *whole-form-placeholder*)
