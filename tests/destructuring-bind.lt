@@ -148,24 +148,6 @@
 ;;;;
 ;;;; * &whole
 
-(define-test &whole-parameter--atomic
-  (assert-lambda-list-validity t (&whole var))
-  (progn
-    (assert-lambda-list-validity nil (&whole "foo"))
-    (assert-lambda-list-validity nil (&whole 123))))
-
-(define-test &whole-parameter--compound
-  ;; when &whole parameter is a list, it is destructuring-pattern
-  (assert-lambda-list-validity t (&whole (a)))
-  (assert-lambda-list-validity t (&whole (a b)))
-  (assert-lambda-list-validity t (&whole (a b . c))))
-
-(define-test &whole-parameter--number-of-parameters
-  (assert-lambda-list-validity nil (&whole))
-  (assert-lambda-list-validity t (&whole a))
-  ;; NOTE: you can put more than one parameter after &whole, but those
-  ;; are treated as &required parameter except first one.
-  (assert-lambda-list-validity t (&whole a b)))
 
 (define-test &whole-bindings
   (assert-equal nil
@@ -539,43 +521,6 @@
 
 ;;;;
 ;;;; * &aux
-
-(define-test &aux-parameter--atomic
-  ;; just variable
-  (assert-lambda-list-validity t (&aux var))
-  (progn
-    ;; var must be a variable
-    (assert-lambda-list-validity nil (&aux "var"))
-    (assert-lambda-list-validity nil (&aux :var))))
-
-(define-test &aux-parameter--compound
-  ;; var with init-form
-  (assert-lambda-list-validity t (&aux (var value)))
-  (progn
-    ;; var must be variable
-    (assert-lambda-list-validity nil (&aux ("var" value)))
-    (assert-lambda-list-validity nil (&aux (:var  value)))
-    ;; destructuring is not allowed here
-    (assert-lambda-list-validity nil (&aux ((a b) value)))
-    (assert-lambda-list-validity nil (&aux ((a . b) value))))
-  (progn
-    ;; init-form can be omitted
-    (assert-lambda-list-validity t (&aux (var)))
-    ;; init-form can be any form
-    (assert-lambda-list-validity t (&aux (var (foo (bar baz)))))
-    (assert-lambda-list-validity t (&aux (var "value")))
-    (assert-lambda-list-validity t (&aux (var :value))))
-  (progn
-    ;; there's no room for other things
-    (assert-lambda-list-validity nil (&aux (var value FOO)))
-    (assert-lambda-list-validity nil (&aux (var value FOO BAR)))))
-
-(define-test &aux-parameter--number-of-parameters
-  ;; you can put any number of parameters in &aux
-  (assert-lambda-list-validity t (&aux))
-  (assert-lambda-list-validity t (&aux a))
-  (assert-lambda-list-validity t (&aux a b))
-  (assert-lambda-list-validity t (&aux a b c)))
 
 (define-test &aux-bindings
   (assert-equal '(1 2 3)
