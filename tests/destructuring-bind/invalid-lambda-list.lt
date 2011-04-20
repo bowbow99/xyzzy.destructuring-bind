@@ -102,7 +102,12 @@
   (assert-lambda-list-validity t (&optional ((a b . c))))
   (assert-lambda-list-validity t (&optional ((a b . c) :init-form)))
   (assert-lambda-list-validity t (&optional ((a b . c) :init-form sp-var)))
-  )
+  ;; with garbage
+  (progn
+    (assert-lambda-list-validity nil (&optional (var :init-form sp-var x)))
+    (assert-lambda-list-validity nil (&optional (var :init-form sp-var x y z)))
+    (assert-lambda-list-validity nil (&optional (var :init-form sp-var "foo")))
+    (assert-lambda-list-validity nil (&optional (var :init-form sp-var (foo (bar baz)))))))
 
 (define-test &optional-parameter--number-of-parameters
   ;; &optional take any number of parameters
