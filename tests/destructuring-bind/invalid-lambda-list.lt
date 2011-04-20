@@ -66,8 +66,51 @@
   (assert-lambda-list-validity t (a b))
   (assert-lambda-list-validity t (a b c)))
 
+
 ;;;;
 ;;;; * &optional
+
+(define-test &optional-parameter--atomic
+  (assert-lambda-list-validity t (&optional x))
+  (progn
+    (assert-lambda-list-validity nil (&optional "foo"))
+    (assert-lambda-list-validity nil (&optional 33))
+    (assert-lambda-list-validity nil (&optional :foo))))
+
+(define-test &optional-parameter--compound
+  ;; wrapped but without init-form
+  (assert-lambda-list-validity t (&optional (var)))
+  (progn
+    (assert-lambda-list-validity nil (&optional ("var")))
+    (assert-lambda-list-validity nil (&optional (:var))))
+  ;; with init-form
+  (assert-lambda-list-validity t (&optional (var :init-form)))
+  (progn
+    ;; init-form can be any kind of form
+    (assert-lambda-list-validity t (&optional (var t)))
+    (assert-lambda-list-validity t (&optional (var nil)))
+    (assert-lambda-list-validity t (&optional (var "hogera fugera")))
+    (assert-lambda-list-validity t (&optional (var (hogera (fugera))))))
+  ;; with init-form + sp-var
+  (assert-lambda-list-validity t (&optional (var :init-form sp-var)))
+  (progn
+    ;; sp-var must be a variable
+    (assert-lambda-list-validity nil (&optional (var :init-form "sp-var")))
+    (assert-lambda-list-validity nil (&optional (var :init-form :sp-var)))
+    (assert-lambda-list-validity nil (&optional (var :init-form (hogera (fugera))))))
+  ;; destructuring
+  (assert-lambda-list-validity t (&optional ((a b . c))))
+  (assert-lambda-list-validity t (&optional ((a b . c) :init-form)))
+  (assert-lambda-list-validity t (&optional ((a b . c) :init-form sp-var)))
+  )
+
+(define-test &optional-parameter--number-of-parameters
+  ;; &optional take any number of parameters
+  (assert-lambda-list-validity t (&optional))
+  (assert-lambda-list-validity t (&optional a))
+  (assert-lambda-list-validity t (&optional a b))
+  (assert-lambda-list-validity t (&optional a b c)))
+
 
 ;;;;
 ;;;; * &rest
