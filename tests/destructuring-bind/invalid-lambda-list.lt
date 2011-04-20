@@ -48,6 +48,24 @@
 ;;;;
 ;;;; * &required
 
+(define-test &required-parameter--atomic
+  (assert-lambda-list-validity t (x))
+  (progn
+    (assert-lambda-list-validity nil ("foo"))
+    (assert-lambda-list-validity nil (33))
+    (assert-lambda-list-validity nil (:foo))))
+
+(define-test &required-parameter--compound
+  (assert-lambda-list-validity t ((a)))
+  (assert-lambda-list-validity t ((a b)))
+  (assert-lambda-list-validity t ((a b . c))))
+
+(define-test &required-parameter--number-of-parameters
+  (assert-lambda-list-validity t ())
+  (assert-lambda-list-validity t (a))
+  (assert-lambda-list-validity t (a b))
+  (assert-lambda-list-validity t (a b c)))
+
 ;;;;
 ;;;; * &optional
 
