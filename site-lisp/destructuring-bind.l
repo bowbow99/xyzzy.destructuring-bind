@@ -111,10 +111,9 @@
 
 (defparameter *state/parser-alist*
   '((&required . parse-&required)
-    ;(&optional . parse-&optional)
     (&optional . gen-&optional-binding)
-    (&rest     . parse-&rest)
-    (&body     . parse-&rest)
+    (&rest     . gen-&rest-binding)
+    (&body     . gen-&rest-binding)
     (&key      . parse-&key)
     (&aux      . parse-&aux)
     ))
@@ -233,7 +232,7 @@
     (incf *max-length*)
     (values vars forms `(cdr ,form))))
 
-;; * &optional
+;;; * &optional
 (defun parse-&optional-parameter (param)
   (cond ((consp param)
          (let ((var     (first param))
@@ -264,29 +263,29 @@
                 (list* sp-form forms)
                 `(cdr ,form))))))
 
-
+;;; * &rest
 (defun %setup-rest-var/form (var form)
   (setf *max-length* nil
         *rest-var*   var
         *rest-form-placeholder* (gensym "$REST-FORM-")
         *rest-form* form))
 
-(defun parse-&rest (param form)
-  (when *rest-var*
-    (error 'invalid-lambda-list :datum *lambda-list*))
-  (let ((rest-var (if (consp param)
-                    (gensym "rest-")
-                    param)))
-    (multiple-value-bind (vars forms)
-        (if (consp param)
-          (parse-lambda-list param rest-var))
-      (%setup-rest-var/form rest-var form)
-      ;; `*rest-form-placeholder*` will be replaced with form stored
-      ;; in `*rest-form*`.
-      (values (list* rest-var vars)
-              (list* *rest-form-placeholder* forms)
-              rest-var))))
+(defun gen-&rest-binding (param form)
+  (when *rest-var* (!invalid-lambda-list))
+  (multiple-value-bind (rest-var vars forms)
+      (cond ((consp param)
+             (let ((rest-var (gensym "rest-")))
+               (multiple-value-bind (vars forms)
+                   (parse-lambda-list param rest-var)
+                 (values rest-var vars forms))))
+            ((variablep param)
+             (values param (list param) (list form)))
+            (t
+             (!invalid-lambda-list)))
+    (%setup-rest-var/form rest-var form)
+    (values vars forms rest-var)))
 
+;;; * &key
 (defun parse-&key (param form)
   (labels ((keyword (name)
              (intern (string name) :keyword)))
