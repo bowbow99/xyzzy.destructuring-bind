@@ -225,9 +225,9 @@
 
 (defun parse-&required (param form)
   (multiple-value-bind (vars forms)
-      (if (consp param)
-        (parse-lambda-list param `(car ,form))
-        (values (list param) (list `(car ,form))))
+      (cond ((consp param)     (parse-lambda-list param `(car ,form)))
+            ((variablep param) (values (list param) (list `(car ,form))))
+            (t (!invalid-lambda-list)))
     (incf *min-length*)
     (incf *max-length*)
     (values vars forms `(cdr ,form))))
