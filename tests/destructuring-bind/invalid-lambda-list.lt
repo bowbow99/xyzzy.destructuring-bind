@@ -120,6 +120,27 @@
 ;;;;
 ;;;; * &rest
 
+
+(define-test &rest-parameter--atomic
+  (assert-lambda-list-validity t (&rest var))
+  (progn
+    ;; must be a variable
+    (assert-lambda-list-validity nil (&rest "var"))
+    (assert-lambda-list-validity nil (&rest :var))))
+
+(define-test &rest-parameter--compound
+  ;; compound parameter will be destructuring pattern
+  (assert-lambda-list-validity t (&rest (a)))
+  (assert-lambda-list-validity t (&rest (a b)))
+  (assert-lambda-list-validity t (&rest (a b . c))))
+
+(define-test &rest-parameter--number-of-parameters
+  ;; &rest must have exactly one parameter
+  (assert-lambda-list-validity nil (&rest))
+  (assert-lambda-list-validity t (&rest a))
+  (assert-lambda-list-validity nil (&rest a b))
+  (assert-lambda-list-validity nil (&rest a b c)))
+
 ;;;;
 ;;;; * &key
 
