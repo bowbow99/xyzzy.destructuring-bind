@@ -111,7 +111,8 @@
 
 (defparameter *state/parser-alist*
   '((&required . parse-&required)
-    (&optional . parse-&optional)
+    ;(&optional . parse-&optional)
+    (&optional . gen-&optional-binding)
     (&rest     . parse-&rest)
     (&body     . parse-&rest)
     (&key      . parse-&key)
@@ -232,19 +233,26 @@
     (incf *max-length*)
     (values vars forms `(cdr ,form))))
 
-(defun parse-&optional (param form)
+;; * &optional
+(defun parse-&optional-parameter (param)
+  (cond ((consp param)
+         (let ((var     (first param))
+               (default (second param))
+               (sp-var  (if (cddr param)
+                          (third param)
+                          (gensym "supplied-p-"))))
+           (unless (and (null (cdddr param)) ; too many things
+                        (variablep sp-var))
+             (!invalid-lambda-list))
+           (values var sp-var default)))
+        ((variablep param)
+         (values param (gensym "supplied-p-") nil))
+        (t
+         (!invalid-lambda-list))))
+
+(defun gen-&optional-binding (param form)
   (multiple-value-bind (var sp-var default-form)
-      (cond ((consp param)
-             (with-places (first second third cdddr) param
-               (when cdddr (!invalid-lambda-list))
-               (let ((sp-var (cond ((null third) (gensym "supplied-p-"))
-                                   ((variablep third) third)
-                                   (t (!invalid-lambda-list)))))
-                 (values first sp-var second))))
-            ((variablep param)
-             (values param nil (gensym "supplied-p-")))
-            (t
-             (!invalid-lambda-list)))
+      (parse-&optional-parameter param)
     (let ((sp-form    `(not (null ,form)))
           (value-form `(if ,sp-var (car ,form) ,default-form)))
       (multiple-value-bind (vars forms)
@@ -255,6 +263,7 @@
         (values (list* sp-var  vars)
                 (list* sp-form forms)
                 `(cdr ,form))))))
+
 
 (defun %setup-rest-var/form (var form)
   (setf *max-length* nil
