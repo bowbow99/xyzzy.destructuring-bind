@@ -166,7 +166,10 @@
                 (unless (member x (cdr (member state +destructuring-lambda-list-keywords+)))
                   (!invalid-lambda-list))
                 (case x
-                  ((&optional &rest &body &key &aux)
+                  ((&optional &key &aux)
+                   (setq state x))
+                  ((&rest &body)
+                   (unless rest (!invalid-lambda-list)) ; no &rest parameter
                    (setq state x))
                   ((&allow-other-keys)
                    (setq *allow-other-keys-p* t)
