@@ -294,13 +294,13 @@
 
 (defun parse-&key-parameter (param)
   (cond ((consp param)
-         (with-places ((key/var first) (default second) (sp-var third) (more cdddr))
+         (with-places ((key/var first) (default second) (sp-var third) (more-in-param cdddr))
              param
            (multiple-value-bind (key var more-in-key/var)
                (if (consp key/var)
                  (values (first key/var) (second key/var) (cddr key/var))
                  (values (%keyword key/var) key/var))
-             (unless (and (null more)
+             (unless (and (null more-in-param)
                           (null more-in-key/var)
                           (variablep var)
                           (symbolp key)
