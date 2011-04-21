@@ -144,6 +144,66 @@
 ;;;;
 ;;;; * &key
 
+(define-test &key-parameter--atomic
+  (assert-lambda-list-validity t (&key var))
+  (progn
+    (assert-lambda-list-validity nil (&key "var"))
+    (assert-lambda-list-validity nil (&key :var))))
+
+(define-test &key-parameter--compound--var-only
+  (assert-lambda-list-validity t (&key (var)))
+  (progn
+    (assert-lambda-list-validity nil (&key ("var")))
+    (assert-lambda-list-validity nil (&key (:var))))
+  ;; with specifying key symbol
+  (assert-lambda-list-validity t (&key ((:key var))))
+  (progn
+    ;; VAR must be a variable
+    (assert-lambda-list-validity nil (&key ((:key "var"))))
+    (assert-lambda-list-validity nil (&key ((:key :var))))
+    ;; KEY must be a symbol (can be non-keyword symbol)
+    (assert-lambda-list-validity nil (&key (( "key"       var))))
+    (assert-lambda-list-validity t   (&key (( key         var))))
+    (assert-lambda-list-validity nil (&key (( 33          var))))
+    (assert-lambda-list-validity nil (&key (( (foo (bar)) var)))))
+  ;; destructuring pattern
+  (assert-lambda-list-validity t (&key ((:key (a b . c)))))
+  (progn
+    ;; KEY must be a symbol
+    (assert-lambda-list-validity nil (&key (( "key"       (a b . c)))))
+    (assert-lambda-list-validity t   (&key (( key         (a b . c)))))
+    (assert-lambda-list-validity nil (&key (( 33          (a b . c)))))
+    (assert-lambda-list-validity nil (&key (( (foo (bar)) (a b . c)))))))
+
+(define-test &key-parameter--compound--w/default
+  (assert-lambda-list-validity t (&key (var default)))
+  (progn
+    ;; DEFAULT can be any form
+    (assert-lambda-list-validity t (&key (var "default")))
+    (assert-lambda-list-validity t (&key (var :default)))
+    (assert-lambda-list-validity t (&key (var 123)))
+    (assert-lambda-list-validity t (&key (var (hogera (fugera)))))))
+
+(define-test &key-parameter--compound--w/default+spvar
+  (assert-lambda-list-validity t (&key (var default spvar)))
+  (progn
+    ;; SPVAR must be a variable
+    (assert-lambda-list-validity nil (&key (var default "spvar")))
+    (assert-lambda-list-validity nil (&key (var default :spvar)))
+    (assert-lambda-list-validity nil (&key (var default (a b . c))))
+    (assert-lambda-list-validity nil (&key (var default 123)))))
+
+(define-test &key-parameter--compound--too-many-things
+  (assert-lambda-list-validity nil (&key (var default spvar a)))
+  (assert-lambda-list-validity nil (&key (var default spvar a b)))
+  (assert-lambda-list-validity nil (&key (var default spvar a b c))))
+
+(define-test &key-parameter--number-of-parameters
+  ;; &key takes any number of parameters
+  (assert-lambda-list-validity t (&key))
+  (assert-lambda-list-validity t (&key a))
+  (assert-lambda-list-validity t (&key a b))
+  (assert-lambda-list-validity t (&key a b c)))
 
 ;;; * &allow-other-keys
 
