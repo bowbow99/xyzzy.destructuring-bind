@@ -292,6 +292,14 @@
 (defun %keyword (name)
   (intern (string name) :keyword))
 
+(defun parse-&key-parameter (param)
+  (if (consp param)
+    (with-places ((key/var first) (default second) (sp-var third)) param
+      (if (consp key/var)
+        (values (first key/var)    (second key/var) default sp-var)
+        (values (%keyword key/var) key/var          default sp-var)))
+    (values (%keyword param) param)))
+
 (defun gen-&key-binding (param form)
   (multiple-value-bind (*vars *forms)
       (when (null *rest-var*)
@@ -300,12 +308,7 @@
         (values (list *rest-var*)
                 (list *rest-form-placeholder*)))
     (multiple-value-bind (keyword var default sp-var)
-        (if (consp param)
-          (with-places ((key/var first) (default second) (sp-var third)) param
-            (if (consp key/var)
-              (values (first key/var)   (second key/var) default sp-var)
-              (values (%keyword key/var) key/var          default sp-var)))
-          (values (keyword param) param))
+        (parse-&key-parameter param)
       (let* ((sp-var     (or sp-var (gensym "keyarg-supplied-p-")))
              (sp-form    `(get-properties ,form '(,keyword)))
              (value-form `(if ,sp-var (getf ,form ',keyword) ,default)))
