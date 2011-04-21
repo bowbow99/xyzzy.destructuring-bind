@@ -293,12 +293,15 @@
   (intern (string name) :keyword))
 
 (defun parse-&key-parameter (param)
-  (if (consp param)
-    (with-places ((key/var first) (default second) (sp-var third)) param
-      (if (consp key/var)
-        (values (first key/var)    (second key/var) default sp-var)
-        (values (%keyword key/var) key/var          default sp-var)))
-    (values (%keyword param) param)))
+  (cond ((consp param)
+         (with-places ((key/var first) (default second) (sp-var third)) param
+           (if (consp key/var)
+             (values (first key/var)    (second key/var) default sp-var)
+             (values (%keyword key/var) key/var          default sp-var))))
+        ((variablep param)
+         (values (%keyword param) param))
+        (t
+         (!invalid-lambda-list))))
 
 (defun gen-&key-binding (param form)
   (multiple-value-bind (*vars *forms)
