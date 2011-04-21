@@ -294,7 +294,9 @@
 
 (defun parse-&key-parameter (param)
   (cond ((consp param)
-         (with-places ((key/var first) (default second) (sp-var third)) param
+         (with-places ((key/var first) (default second) (sp-var third) (more cdddr))
+             param
+           (when more (!invalid-lambda-list))
            (if (consp key/var)
              (values (first key/var)    (second key/var) default sp-var)
              (values (%keyword key/var) key/var          default sp-var))))
