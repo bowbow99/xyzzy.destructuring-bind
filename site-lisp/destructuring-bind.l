@@ -304,7 +304,7 @@
                  (values (%keyword key/var) key/var))
              (unless (and (null more-in-param)
                           (null more-in-key/var)
-                          (variablep var)
+                          (or (variablep var) (consp var))
                           (symbolp key)
                           (variablep sp-var))
                (!invalid-lambda-list))
