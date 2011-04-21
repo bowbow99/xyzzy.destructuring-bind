@@ -114,7 +114,7 @@
     (&optional . gen-&optional-binding)
     (&rest     . gen-&rest-binding)
     (&body     . gen-&rest-binding)
-    (&key      . parse-&key)
+    (&key      . gen-&key-binding)
     (&aux      . parse-&aux)
     ))
 
@@ -289,7 +289,7 @@
     (values vars forms rest-var)))
 
 ;;; * &key
-(defun parse-&key (param form)
+(defun gen-&key-binding (param form)
   (labels ((keyword (name)
              (intern (string name) :keyword)))
     (multiple-value-bind (*vars *forms)
