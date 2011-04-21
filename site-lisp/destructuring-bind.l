@@ -296,10 +296,15 @@
   (cond ((consp param)
          (with-places ((key/var first) (default second) (sp-var third) (more cdddr))
              param
-           (when more (!invalid-lambda-list))
-           (if (consp key/var)
-             (values (first key/var)    (second key/var) default sp-var)
-             (values (%keyword key/var) key/var          default sp-var))))
+           (multiple-value-bind (key var more-in-var)
+               (cond ((consp key/var)
+                      (values (first key/var) (second key/var) (cddr key/var)))
+                     ((variablep key/var)
+                      (values (%keyword key/var) key/var))
+                     (t
+                      (!invalid-lambda-list)))
+             (when more (!invalid-lambda-list))
+             (values key var default sp-var))))
         ((variablep param)
          (values (%keyword param) param))
         (t
