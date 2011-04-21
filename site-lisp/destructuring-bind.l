@@ -294,8 +294,10 @@
 
 (defun parse-&key-parameter (param)
   (cond ((consp param)
-         (with-places ((key/var first) (default second) (sp-var third) (more-in-param cdddr))
-             param
+         (let ((key/var (first param))
+               (default (second param))
+               (sp-var  (if (cddr param) (third param) (gensym "keyarg-supplied-p-")))
+               (more-in-param (cdddr param)))
            (multiple-value-bind (key var more-in-key/var)
                (if (consp key/var)
                  (values (first key/var) (second key/var) (cddr key/var))
