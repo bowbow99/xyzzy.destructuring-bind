@@ -268,18 +268,16 @@
 
 (defun gen-&rest-binding (param form)
   (%ASSERT-LAMBDA-LIST (null *rest-var*))
-  (multiple-value-bind (rest-var vars forms)
-      (cond ((consp param)
-             (let ((rest-var (gensym "rest-")))
-               (multiple-value-bind (vars forms)
-                   (parse-lambda-list param rest-var)
-                 (values rest-var vars forms))))
-            ((variablep param)
-             (values param (list param) (list form)))
-            (t
-             (!invalid-lambda-list)))
-    (%setup-rest-var/form rest-var form)
-    (values vars forms rest-var)))
+  (multiple-value-bind (vars forms)
+      (if (atom param)
+        (progn
+          (%ASSERT-LAMBDA-LIST (variablep param))
+          (values (list param) (list form)))
+        (parse-lambda-list param form))
+    (%setup-rest-var/form (first vars) (first forms))
+    (values (cons *rest-var* (cdr vars))
+            (cons *rest-form-placeholder* (cdr forms))
+            *rest-var*)))
 
 ;;; * &key
 (defun %keyword (name)
