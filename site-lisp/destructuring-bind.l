@@ -220,9 +220,11 @@
 
 (defun gen-&required-binding (param form)
   (multiple-value-bind (vars forms)
-      (cond ((consp param)     (parse-lambda-list param `(car ,form)))
-            ((variablep param) (values (list param) (list `(car ,form))))
-            (t (!invalid-lambda-list)))
+      (if (atom param)
+        (progn
+          (%ASSERT-LAMBDA-LIST (variablep param))
+          (values (list param) (list `(car ,form))))
+        (parse-lambda-list param `(car ,form)))
     (incf *min-length*)
     (incf *max-length*)
     (values vars forms `(cdr ,form))))
@@ -358,11 +360,6 @@
        ,@body)))
 #+xyzzy
 (setf (get 'destructuring-bind 'ed:lisp-indent-hook) 2)
-
-
-
-
-
 
 
 #+debug
