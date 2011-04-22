@@ -274,5 +274,96 @@
   (assert-lambda-list-validity t (&aux a b))
   (assert-lambda-list-validity t (&aux a b c)))
 
+;;;;
+;;;; * Combination/Order of lambda-list keywords
+
+(define-test order-of-lambda-list-keywords
+  (assert-lambda-list-validity t
+      (&whole WHOLE REQUIRED &optional OPTIONAL &rest REST &key KEY &allow-other-keys &aux AUX))
+  ;; &whole
+  (progn
+    (progn ; after &required
+      (assert-lambda-list-validity nil
+          (REQUIRED &whole WHOLE))
+      (assert-lambda-list-validity nil
+          (REQUIRED &whole WHOLE &optional OPTIONAL))
+      (assert-lambda-list-validity nil
+          (REQUIRED &whole WHOLE &optional OPTIONAL &rest REST))
+      (assert-lambda-list-validity nil
+          (REQUIRED &whole WHOLE &optional OPTIONAL &rest REST &key KEY))
+      (assert-lambda-list-validity nil
+          (REQUIRED &whole WHOLE &optional OPTIONAL &rest REST &key KEY &aux AUX)))
+    (progn ; after &optional
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &whole WHOLE))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &whole WHOLE &rest REST))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &whole WHOLE &rest REST &key KEY))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &whole WHOLE &rest REST &key KEY &aux AUX)))
+    (progn ; after &rest
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &whole WHOLE))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &whole WHOLE &key KEY))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &whole WHOLE &key KEY &aux AUX)))
+    (progn ; after &key
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &key KEY &whole WHOLE))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &key KEY &whole WHOLE &aux AUX)))
+    (progn ; after &aux
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &key KEY &aux AUX &whole WHOLE))))
+  ;; &required -- there's no lambda-list keyword for required parameter
+  ;; &optional
+  (progn
+    (progn ; after &rest
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &optional OPTIONAL))
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &optional OPTIONAL &key KEY))
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &optional OPTIONAL &key KEY &aux AUX)))
+    (progn ; after &key
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &key KEY &optional OPTIONAL))
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &key KEY &optional OPTIONAL &aux)))
+    (progn ; after &aux
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &key KEY &aux AUX &optional OPTIONAL))))
+  ;; &rest
+  (progn
+    (progn ; after &key
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &optional OPTIONAL &key KEY &rest REST))
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &optional OPTIONAL &key KEY &rest REST &aux AUX)))
+    (progn ; after &aux
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &optional OPTIONAL &key KEY &aux AUX &rest REST))))
+  ;; &key
+  (progn ; after &aux
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &optional OPTIONAL &rest REST &aux AUX &key KEY)))
+  ;; &environment
+  (progn
+    (assert-lambda-list-validity nil
+        (&environment ENV &whole WHOLE REQUIRED &optional OPTIONAL &rest REST &aux AUX &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE &environment ENV REQUIRED &optional OPTIONAL &rest REST &aux AUX &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &environment ENV &optional OPTIONAL &rest REST &aux AUX &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &optional OPTIONAL &environment ENV &rest REST &aux AUX &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &optional OPTIONAL &rest REST &environment ENV &aux AUX &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &optional OPTIONAL &rest REST &aux AUX &environment ENV &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &optional OPTIONAL &rest REST &aux AUX &key KEY &environment ENV))))
 
 ;;; tests/destructuring-bind/invalid-lambda-list.lt ends here
