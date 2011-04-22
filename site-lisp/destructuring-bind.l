@@ -167,20 +167,17 @@
           (with-ca/dr (x rest) lambda-list
             (if (member x +destructuring-lambda-list-keywords+)
               (progn
-                (unless (member x (cdr (member state +destructuring-lambda-list-keywords+)))
-                  (!invalid-lambda-list))
+                (%ASSERT-LAMBDA-LIST (member x (cdr (member state +destructuring-lambda-list-keywords+))))
                 (case x
                   ((&optional &key &aux)
                    (setq state x))
                   ((&rest &body)
-                   (unless rest (!invalid-lambda-list)) ; no &rest parameter
+                   (%ASSERT-LAMBDA-LIST (not (null rest))) ; no &rest parameter
                    (setq state x))
                   ((&allow-other-keys)
-                   (setq *allow-other-keys-p* t)
-                   (unless (and (eql state '&key)
-                                (or (null rest)
-                                    (eql (car rest) '&aux)))
-                     (!invalid-lambda-list)))
+                   (%ASSERT-LAMBDA-LIST (eql state '&key)
+                                        (or (null rest) (eql (car rest) '&aux)))
+                   (setq *allow-other-keys-p* t))
                   (t
                    (error "Should not see me"))))
               (multiple-value-bind (vars% forms% tail%)
