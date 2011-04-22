@@ -338,17 +338,14 @@
                   *rest-var*))))))
 
 (defun gen-&aux-binding (param form)
-  (cond
-   ((consp param)
-    (with-places (first second cddr) param
-      (%ASSERT-LAMBDA-LIST (variablep first)
-                           (null cddr))
-      (values (list first) (list second))))
-   ((variablep param)
-    (values (list param) (list nil)))
-   (t
-    (!invalid-lambda-list))))
-
+  (if (atom param)
+    (progn
+      (%ASSERT-LAMBDA-LIST (variablep param))
+      (values (list param) (list nil)))
+    (with-places (first second) param
+      (%ASSERT-LAMBDA-LIST (<= (length param) 2)
+                           (variablep first))
+      (values (list first) (list second)))))
 
 (defmacro lisp:destructuring-bind (lambda-list expr &body body)
   (multiple-value-bind (vars values)
