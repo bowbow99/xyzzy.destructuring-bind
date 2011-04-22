@@ -196,7 +196,6 @@
                            `(%assert-keyword-list
                              ,*rest-form* ',*known-keywords* ,*allow-other-keys-p*))
                          *rest-form-placeholder* forms))
-      #+debug (break "keywords: ~S" *known-keywords*)
       (values vars forms))))
 
 ;; NOTE: this one has bit different interface than other parse-*.
