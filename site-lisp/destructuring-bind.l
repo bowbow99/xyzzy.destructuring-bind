@@ -244,9 +244,8 @@
                (sp-var  (if (cddr param)
                           (third param)
                           (gensym "supplied-p-"))))
-           (unless (and (null (cdddr param)) ; too many things
-                        (variablep sp-var))
-             (!invalid-lambda-list))
+           (%ASSERT-LAMBDA-LIST (null (cdddr param))
+                                (variablep sp-var))
            (values var sp-var default)))
         ((variablep param)
          (values param (gensym "supplied-p-") nil))
@@ -275,7 +274,7 @@
         *rest-form* form))
 
 (defun gen-&rest-binding (param form)
-  (when *rest-var* (!invalid-lambda-list))
+  (%ASSERT-LAMBDA-LIST (null *rest-var*))
   (multiple-value-bind (rest-var vars forms)
       (cond ((consp param)
              (let ((rest-var (gensym "rest-")))
@@ -294,33 +293,31 @@
   (intern (string name) :keyword))
 
 (defun parse-&key-parameter (param)
-  (macrolet ((%ASSERT-PARAMETER (&rest test-forms)
-               `(unless (and ,@test-forms) (!invalid-lambda-list))))
-    (if (atom param)
-      ;; atomic form: VAR
-      (progn
-        (%ASSERT-PARAMETER (variablep param))
-        (values (%keyword param) param nil (gensym "keyarg-supplied-p-")))
-      ;; compound form
-      (let ((key/var (first param))
-            (default (second param))
-            (sp-var  (if (cddr param)
-                       (third param)
-                       (gensym "keyarg-supplied-p-"))))
-        (%ASSERT-PARAMETER (null (cdddr param))
+  (if (atom param)
+    ;; atomic form: VAR
+    (progn
+      (%ASSERT-LAMBDA-LIST (variablep param))
+      (values (%keyword param) param nil (gensym "keyarg-supplied-p-")))
+    ;; compound form
+    (let ((key/var (first param))
+          (default (second param))
+          (sp-var  (if (cddr param)
+                     (third param)
+                     (gensym "keyarg-supplied-p-"))))
+      (%ASSERT-LAMBDA-LIST (null (cdddr param))
                            (variablep sp-var))
-        (if (atom key/var)
-          ;; (VAR DEFAULT SP-VAR)
-          (progn
-            (%ASSERT-PARAMETER (variablep key/var))
-            (values (%keyword key/var) key/var default sp-var))
-          ;; ((KEYSYM VAR/PATTERN) DEFAULT SP-VAR)
-          (let ((key (first key/var))
-                (var (second key/var)))
-            (%ASSERT-PARAMETER (null (cddr key/var))
+      (if (atom key/var)
+        ;; (VAR DEFAULT SP-VAR)
+        (progn
+          (%ASSERT-LAMBDA-LIST (variablep key/var))
+          (values (%keyword key/var) key/var default sp-var))
+        ;; ((KEYSYM VAR/PATTERN) DEFAULT SP-VAR)
+        (let ((key (first key/var))
+              (var (second key/var)))
+          (%ASSERT-LAMBDA-LIST (null (cddr key/var))
                                (symbolp key)
                                (or (variablep var) (consp var)))
-            (values key var default sp-var)))))))
+          (values key var default sp-var))))))
 
 (defun gen-&key-binding (param form)
   (multiple-value-bind (*vars *forms)
@@ -353,9 +350,8 @@
   (cond
    ((consp param)
     (with-places (first second cddr) param
-      (unless (and (variablep first)
-                   (null cddr))
-        (!invalid-lambda-list))
+      (%ASSERT-LAMBDA-LIST (variablep first)
+                           (null cddr))
       (values (list first) (list second))))
    ((variablep param)
     (values (list param) (list nil)))
