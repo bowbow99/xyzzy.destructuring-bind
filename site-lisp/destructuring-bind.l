@@ -157,7 +157,7 @@
          (tail  nil)
          (state '&required))
     (multiple-value-setq (vars forms tail lambda-list)
-        (parse-&whole lambda-list form))
+        (gen-&whole-binding lambda-list form))
     (progn
       (do ((lambda-list lambda-list (cdr lambda-list)))
           ((null lambda-list))
@@ -202,7 +202,7 @@
 ;; NOTE: this one has bit different interface than other parse-*.
 ;; - 1st arg: takes entire LAMBDA-LIST rather than one PARAMETER in issue
 ;; - 4th value: returns (possibly modified) LAMBDA-LIST
-(defun parse-&whole (lambda-list form)
+(defun gen-&whole-binding (lambda-list form)
   (let ((placeholder (gensym "$WHOLE-FORM-")))
     (multiple-value-bind (param lambda-list)
         (if (eql (first lambda-list) '&whole)
