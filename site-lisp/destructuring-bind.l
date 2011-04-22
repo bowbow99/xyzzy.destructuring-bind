@@ -110,12 +110,12 @@
   keyword-list)
 
 (defparameter *state/parser-alist*
-  '((&required . parse-&required)
+  '((&required . gen-&required-binding)
     (&optional . gen-&optional-binding)
     (&rest     . gen-&rest-binding)
     (&body     . gen-&rest-binding)
     (&key      . gen-&key-binding)
-    (&aux      . parse-&aux)
+    (&aux      . gen-&aux-binding)
     ))
 
 (defparameter *lambda-list* nil)
@@ -219,7 +219,7 @@
         (values vars forms (first vars) lambda-list)))))
 
 
-(defun parse-&required (param form)
+(defun gen-&required-binding (param form)
   (multiple-value-bind (vars forms)
       (cond ((consp param)     (parse-lambda-list param `(car ,form)))
             ((variablep param) (values (list param) (list `(car ,form))))
@@ -338,7 +338,7 @@
                   (append *forms forms)
                   *rest-var*))))))
 
-(defun parse-&aux (param form)
+(defun gen-&aux-binding (param form)
   (cond
    ((consp param)
     (with-places (first second cddr) param
