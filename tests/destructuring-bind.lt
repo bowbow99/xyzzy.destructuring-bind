@@ -19,6 +19,35 @@
 (defun %bool (x)
   (not (null x)))
 
+(defconstant +constant+ '#:dummy)
+
+(defmacro assert-invalid-lambda-list (&rest lambda-lists)
+  `(progn
+     ,@(mapcar (lambda (ll)
+                 `(assert-error 'invalid-lambda-list
+                      (macroexpand-1 '(destructuring-bind ,ll nil t))))
+         lambda-lists)))
+
+(defmacro assert-valid-lambda-list (&rest lambda-lists)
+  `(progn
+     ,@(mapcar (lambda (ll)
+                 `(assert-true
+                      (macroexpand-1 '(destructuring-bind ,ll nil t))))
+         lambda-lists)))
+#+xyzzy
+(setf (get 'assert-invalid-lambda-list 'ed:lisp-indent-hook) 0
+      (get 'assert-valid-lambda-list 'ed:lisp-indent-hook) 0)
+
+
+(defmacro assert-lambda-list-validity (valid lambda-list)
+  (let ((expand-form `(macroexpand-1 '(destructuring-bind ,lambda-list nil))))
+  (if valid
+    `(assert-true (multiple-value-bind (expansion expand?)
+                      ,expand-form
+                    expand?))
+    `(assert-error 'invalid-lambda-list ,expand-form))))
+#+xyzzy
+(setf (get 'assert-lambda-list-validity 'ed:lisp-indent-hook) 2)
 
 ;;;;
 ;;;; * Utilities: %assert-keyword-list
@@ -115,6 +144,28 @@
       (loop for x in '((:foo 1 :a 1 :allow-other-keys t)
                        (:foo 1 :a 1 :allow-other-keys t :allow-other-keys nil))
         do (assert-keyword-list t x)))))
+
+;;;;
+;;;; * &whole
+
+
+(define-test &whole-bindings
+  (assert-equal nil
+      (destructuring-bind (&whole x) nil x))
+  (assert-equal '(1 2)
+      (destructuring-bind (&whole x &rest y) '(1 2) x))
+  (assert-equal '(1 2 :d 1 :c 2)
+      (destructuring-bind (&whole x a b &key c d)
+          '(1 2 :d 1 :c 2)
+        x)))
+
+(define-test &whole-next
+  (assert-lambda-list-validity t (&whole a &optional b))
+  (assert-lambda-list-validity t (&whole a &rest b))
+  (assert-lambda-list-validity t (&whole a &key))
+  (assert-lambda-list-validity t (&whole a &key))
+  (assert-lambda-list-validity t (&whole a &aux)))
+
 
 ;;;;
 ;;;; * &required
@@ -441,11 +492,37 @@
           '(:b 2 :foo 3)
         (list a b))))
 
+(define-test &allow-other-keys--without-&key
+  (assert-invalid-lambda-list
+    (&allow-other-keys)
+    (a &optional &allow-other-keys)
+    (a &optional b &allow-other-keys)
+    (a &optional b &rest c &allow-other-keys)))
+
+(define-test &allow-other-keys--after
+  (assert-invalid-lambda-list
+    ;; parameter
+    (&key &allow-other-keys a)
+    (&key &allow-other-keys (a 1))
+    ;; other lambda-list keywords (except &aux)
+    (&key &allow-other-keys &whole)
+    (&key &allow-other-keys &whole a)
+    (&key &allow-other-keys &optional)
+    (&key &allow-other-keys &optional a b)
+    (&key &allow-other-keys &optional a &rest)
+    (&key &allow-other-keys &optional a &rest b)
+    (&key &allow-other-keys &rest a)
+    (&key &allow-other-keys &key a b)
+    (&key &allow-other-keys &allow-other-keys))
+  (assert-valid-lambda-list
+    (&key a b &allow-other-keys &aux)
+    (&key a b &allow-other-keys &aux c)
+    (&key a b &allow-other-keys &aux c d)))
 
 ;;;;
 ;;;; * &aux
 
-(define-test &aux-basic
+(define-test &aux-bindings
   (assert-equal '(1 2 3)
       (destructuring-bind (&aux (a 1) (b 2) (c 3))
           nil
@@ -459,10 +536,13 @@
           nil
         (list a b c))))
 
-(define-test &aux-cant-destructure
-  (assert-error 'invalid-lambda-list
-      (destructuring-bind (&aux ((a b) '(1 2)))
-          nil
-        (list a b))))
+(define-test &aux-after
+  ;; No lambda-list keyword allowed after &aux
+  (assert-lambda-list-validity nil (&aux &whole a))
+  (assert-lambda-list-validity nil (&aux &optional a))
+  (assert-lambda-list-validity nil (&aux &rest a))
+  (assert-lambda-list-validity nil (&aux &key a))
+  (assert-lambda-list-validity nil (&aux &aux a)))
+
 
 ;;; tests/destructuring-bind.lt ends here.
