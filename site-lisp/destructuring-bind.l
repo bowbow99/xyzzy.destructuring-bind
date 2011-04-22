@@ -204,28 +204,20 @@
 ;; - 4th value: returns (possibly modified) LAMBDA-LIST
 (defun parse-&whole (lambda-list form)
   (let ((placeholder (gensym "$WHOLE-FORM-")))
-    (multiple-value-bind (whole-var lambda-list vars forms)
-        (cond
-         ;; No &whole
-         ((not (eql (car lambda-list) '&whole))
-          (values (gensym "whole-") lambda-list))
-         ;; &whole VARIABLE
-         ((variablep (second lambda-list))
-          (values (second lambda-list) (cddr lambda-list)))
-         ;; &whole (PA TT . ERN)
-         ((consp (second lambda-list))
-          (let ((whole-var (gensym "whole-")))
-            (multiple-value-bind (vars forms)
-                (parse-lambda-list (second lambda-list) whole-var)
-              (values whole-var (cddr lambda-list) vars forms))))
-         (t
-          (!invalid-lambda-list)))
-      (setf *whole-form-placeholder* placeholder
-            *whole-form* form)
-      (values (cons whole-var vars)
-              (cons placeholder forms)
-              whole-var
-              lambda-list))))
+    (multiple-value-bind (param lambda-list)
+        (if (eql (first lambda-list) '&whole)
+          (values (second lambda-list) (cddr lambda-list))
+          (values (gensym "whole-")    lambda-list))
+      (multiple-value-bind (vars forms)
+          (if (atom param)
+            (progn
+              (%ASSERT-LAMBDA-LIST (variablep param))
+              (values (list param) (list placeholder)))
+            (parse-lambda-list param placeholder))
+        (setf *whole-form-placeholder* placeholder
+              *whole-form* form)
+        (values vars forms (first vars) lambda-list)))))
+
 
 (defun parse-&required (param form)
   (multiple-value-bind (vars forms)
