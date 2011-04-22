@@ -21,6 +21,8 @@
     (if valid-p
       `(assert-true (multiple-value-bind (#:expn #1=#:p) ,expand-form #1#))
       `(assert-error 'invalid-lambda-list ,expand-form))))
+#+xyzzy
+(setf (get 'assert-lambda-list-validity 'ed:lisp-indent-hook) 2)
 
 ;;;;
 ;;;; * &whole
