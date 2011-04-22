@@ -1,0 +1,369 @@
+;;; -*- mode: lisp; package: test.destructuring-bind.invalid-lambda-list -*-
+;;;
+;;; tests/destructuring-bind/invalid-lambda-list.lt
+;;;
+
+;;; Code:
+
+(require "destructuring-bind")
+(require "lisp-unit")
+
+(defpackage :test.destructuring-bind.invalid-lambda-list
+  (:use :lisp :lisp-unit))
+
+(in-package :test.destructuring-bind.invalid-lambda-list)
+
+(remove-all-tests :test.destructuring-bind.invalid-lambda-list)
+
+
+(defmacro assert-lambda-list-validity (valid-p lambda-list)
+  (let ((expand-form `(macroexpand-1 '(destructuring-bind ,lambda-list nil nil))))
+    (if valid-p
+      `(assert-true (multiple-value-bind (#:expn #1=#:p) ,expand-form #1#))
+      `(assert-error 'invalid-lambda-list ,expand-form))))
+#+xyzzy
+(setf (get 'assert-lambda-list-validity 'ed:lisp-indent-hook) 2)
+
+;;;;
+;;;; * &whole
+
+(define-test &whole-parameter--atomic
+  (assert-lambda-list-validity t (&whole var))
+  (progn
+    (assert-lambda-list-validity nil (&whole "foo"))
+    (assert-lambda-list-validity nil (&whole 123))))
+
+(define-test &whole-parameter--compound
+  ;; when &whole parameter is a list, it is destructuring-pattern
+  (assert-lambda-list-validity t (&whole (a)))
+  (assert-lambda-list-validity t (&whole (a b)))
+  (assert-lambda-list-validity t (&whole (a b . c))))
+
+(define-test &whole-parameter--number-of-parameters
+  (assert-lambda-list-validity nil (&whole))
+  (assert-lambda-list-validity t (&whole a))
+  ;; NOTE: you can put more than one parameter after &whole, but those
+  ;; are treated as &required parameter except first one.
+  (assert-lambda-list-validity t (&whole a b)))
+
+
+;;;;
+;;;; * &required
+
+(define-test &required-parameter--atomic
+  (assert-lambda-list-validity t (x))
+  (progn
+    (assert-lambda-list-validity nil ("foo"))
+    (assert-lambda-list-validity nil (33))
+    (assert-lambda-list-validity nil (:foo))))
+
+(define-test &required-parameter--compound
+  (assert-lambda-list-validity t ((a)))
+  (assert-lambda-list-validity t ((a b)))
+  (assert-lambda-list-validity t ((a b . c))))
+
+(define-test &required-parameter--number-of-parameters
+  (assert-lambda-list-validity t ())
+  (assert-lambda-list-validity t (a))
+  (assert-lambda-list-validity t (a b))
+  (assert-lambda-list-validity t (a b c)))
+
+
+;;;;
+;;;; * &optional
+
+(define-test &optional-parameter--atomic
+  (assert-lambda-list-validity t (&optional x))
+  (progn
+    (assert-lambda-list-validity nil (&optional "foo"))
+    (assert-lambda-list-validity nil (&optional 33))
+    (assert-lambda-list-validity nil (&optional :foo))))
+
+(define-test &optional-parameter--compound
+  ;; wrapped but without init-form
+  (assert-lambda-list-validity t (&optional (var)))
+  (progn
+    (assert-lambda-list-validity nil (&optional ("var")))
+    (assert-lambda-list-validity nil (&optional (:var))))
+  ;; with init-form
+  (assert-lambda-list-validity t (&optional (var :init-form)))
+  (progn
+    ;; init-form can be any kind of form
+    (assert-lambda-list-validity t (&optional (var t)))
+    (assert-lambda-list-validity t (&optional (var nil)))
+    (assert-lambda-list-validity t (&optional (var "hogera fugera")))
+    (assert-lambda-list-validity t (&optional (var (hogera (fugera))))))
+  ;; with init-form + sp-var
+  (assert-lambda-list-validity t (&optional (var :init-form sp-var)))
+  (progn
+    ;; sp-var must be a variable
+    (assert-lambda-list-validity nil (&optional (var :init-form "sp-var")))
+    (assert-lambda-list-validity nil (&optional (var :init-form :sp-var)))
+    (assert-lambda-list-validity nil (&optional (var :init-form (hogera (fugera))))))
+  ;; destructuring
+  (assert-lambda-list-validity t (&optional ((a b . c))))
+  (assert-lambda-list-validity t (&optional ((a b . c) :init-form)))
+  (assert-lambda-list-validity t (&optional ((a b . c) :init-form sp-var)))
+  ;; with garbage
+  (progn
+    (assert-lambda-list-validity nil (&optional (var :init-form sp-var x)))
+    (assert-lambda-list-validity nil (&optional (var :init-form sp-var x y z)))
+    (assert-lambda-list-validity nil (&optional (var :init-form sp-var "foo")))
+    (assert-lambda-list-validity nil (&optional (var :init-form sp-var (foo (bar baz)))))))
+
+(define-test &optional-parameter--number-of-parameters
+  ;; &optional take any number of parameters
+  (assert-lambda-list-validity t (&optional))
+  (assert-lambda-list-validity t (&optional a))
+  (assert-lambda-list-validity t (&optional a b))
+  (assert-lambda-list-validity t (&optional a b c)))
+
+
+;;;;
+;;;; * &rest
+
+
+(define-test &rest-parameter--atomic
+  (assert-lambda-list-validity t (&rest var))
+  (progn
+    ;; must be a variable
+    (assert-lambda-list-validity nil (&rest "var"))
+    (assert-lambda-list-validity nil (&rest :var))))
+
+(define-test &rest-parameter--compound
+  ;; compound parameter will be destructuring pattern
+  (assert-lambda-list-validity t (&rest (a)))
+  (assert-lambda-list-validity t (&rest (a b)))
+  (assert-lambda-list-validity t (&rest (a b . c))))
+
+(define-test &rest-parameter--number-of-parameters
+  ;; &rest must have exactly one parameter
+  (assert-lambda-list-validity nil (&rest))
+  (assert-lambda-list-validity t (&rest a))
+  (assert-lambda-list-validity nil (&rest a b))
+  (assert-lambda-list-validity nil (&rest a b c)))
+
+;;;;
+;;;; * &key
+
+(define-test &key-parameter--atomic
+  (assert-lambda-list-validity t (&key var))
+  (progn
+    (assert-lambda-list-validity nil (&key "var"))
+    (assert-lambda-list-validity nil (&key :var))))
+
+(define-test &key-parameter--compound--var-only
+  (assert-lambda-list-validity t (&key (var)))
+  (progn
+    (assert-lambda-list-validity nil (&key ("var")))
+    (assert-lambda-list-validity nil (&key (:var))))
+  ;; with specifying key symbol
+  (assert-lambda-list-validity t (&key ((:key var))))
+  (progn
+    ;; VAR must be a variable
+    (assert-lambda-list-validity nil (&key ((:key "var"))))
+    (assert-lambda-list-validity nil (&key ((:key :var))))
+    ;; KEY must be a symbol (can be non-keyword symbol)
+    (assert-lambda-list-validity nil (&key (( "key"       var))))
+    (assert-lambda-list-validity t   (&key (( key         var))))
+    (assert-lambda-list-validity nil (&key (( 33          var))))
+    (assert-lambda-list-validity nil (&key (( (foo (bar)) var)))))
+  ;; destructuring pattern
+  (assert-lambda-list-validity t (&key ((:key (a b . c)))))
+  (progn
+    ;; KEY must be a symbol
+    (assert-lambda-list-validity nil (&key (( "key"       (a b . c)))))
+    (assert-lambda-list-validity t   (&key (( key         (a b . c)))))
+    (assert-lambda-list-validity nil (&key (( 33          (a b . c)))))
+    (assert-lambda-list-validity nil (&key (( (foo (bar)) (a b . c)))))))
+
+(define-test &key-parameter--compound--w/default
+  (assert-lambda-list-validity t (&key (var default)))
+  (progn
+    ;; DEFAULT can be any form
+    (assert-lambda-list-validity t (&key (var "default")))
+    (assert-lambda-list-validity t (&key (var :default)))
+    (assert-lambda-list-validity t (&key (var 123)))
+    (assert-lambda-list-validity t (&key (var (hogera (fugera)))))))
+
+(define-test &key-parameter--compound--w/default+spvar
+  (assert-lambda-list-validity t (&key (var default spvar)))
+  (progn
+    ;; SPVAR must be a variable
+    (assert-lambda-list-validity nil (&key (var default "spvar")))
+    (assert-lambda-list-validity nil (&key (var default :spvar)))
+    (assert-lambda-list-validity nil (&key (var default (a b . c))))
+    (assert-lambda-list-validity nil (&key (var default 123)))))
+
+(define-test &key-parameter--compound--too-many-things
+  (assert-lambda-list-validity nil (&key (var default spvar a)))
+  (assert-lambda-list-validity nil (&key (var default spvar a b)))
+  (assert-lambda-list-validity nil (&key (var default spvar a b c))))
+
+(define-test &key-parameter--number-of-parameters
+  ;; &key takes any number of parameters
+  (assert-lambda-list-validity t (&key))
+  (assert-lambda-list-validity t (&key a))
+  (assert-lambda-list-validity t (&key a b))
+  (assert-lambda-list-validity t (&key a b c)))
+
+;;; * &allow-other-keys
+
+(define-test &allow-other-keys--must-follow-&key
+  (assert-lambda-list-validity t (&key &allow-other-keys))
+  (progn
+    (assert-lambda-list-validity nil (&allow-other-keys))
+    (assert-lambda-list-validity nil (&allow-other-keys &key)))
+  (progn
+    (assert-lambda-list-validity t (&key a &allow-other-keys))
+    (assert-lambda-list-validity t (&key a b &allow-other-keys))
+    (assert-lambda-list-validity t (&key a b c &allow-other-keys)))
+  (progn
+    (assert-lambda-list-validity t (a &key b &allow-other-keys))
+    (assert-lambda-list-validity t (a &optional b &key c &allow-other-keys))
+    (assert-lambda-list-validity t (a &optional b &rest c &key d &allow-other-keys))
+    (assert-lambda-list-validity t (a &optional b &rest c &key d &allow-other-keys &aux e))))
+
+(define-test &allow-other-keys--no-parameters-allowed
+  (progn
+    (assert-lambda-list-validity nil (&key &allow-other-keys a))
+    (assert-lambda-list-validity nil (&key &allow-other-keys a b))
+    (assert-lambda-list-validity nil (&key &allow-other-keys a b c)))
+  (progn
+    (assert-lambda-list-validity nil (&key a &allow-other-keys b))
+    (assert-lambda-list-validity nil (&key a &allow-other-keys b c))
+    (assert-lambda-list-validity nil (&key a &allow-other-keys b c d))))
+
+;;;;
+;;;; * &aux
+
+(define-test &aux-parameter--atomic
+  ;; just variable
+  (assert-lambda-list-validity t (&aux var))
+  (progn
+    ;; var must be a variable
+    (assert-lambda-list-validity nil (&aux "var"))
+    (assert-lambda-list-validity nil (&aux :var))))
+
+(define-test &aux-parameter--compound
+  ;; var with init-form
+  (assert-lambda-list-validity t (&aux (var value)))
+  (progn
+    ;; var must be variable
+    (assert-lambda-list-validity nil (&aux ("var" value)))
+    (assert-lambda-list-validity nil (&aux (:var  value)))
+    ;; destructuring is not allowed here
+    (assert-lambda-list-validity nil (&aux ((a b) value)))
+    (assert-lambda-list-validity nil (&aux ((a . b) value))))
+  (progn
+    ;; init-form can be omitted
+    (assert-lambda-list-validity t (&aux (var)))
+    ;; init-form can be any form
+    (assert-lambda-list-validity t (&aux (var (foo (bar baz)))))
+    (assert-lambda-list-validity t (&aux (var "value")))
+    (assert-lambda-list-validity t (&aux (var :value))))
+  (progn
+    ;; there's no room for other things
+    (assert-lambda-list-validity nil (&aux (var value FOO)))
+    (assert-lambda-list-validity nil (&aux (var value FOO BAR)))))
+
+(define-test &aux-parameter--number-of-parameters
+  ;; you can put any number of parameters in &aux
+  (assert-lambda-list-validity t (&aux))
+  (assert-lambda-list-validity t (&aux a))
+  (assert-lambda-list-validity t (&aux a b))
+  (assert-lambda-list-validity t (&aux a b c)))
+
+;;;;
+;;;; * Combination/Order of lambda-list keywords
+
+(define-test order-of-lambda-list-keywords
+  (assert-lambda-list-validity t
+      (&whole WHOLE REQUIRED &optional OPTIONAL &rest REST &key KEY &allow-other-keys &aux AUX))
+  ;; &whole
+  (progn
+    (progn ; after &required
+      (assert-lambda-list-validity nil
+          (REQUIRED &whole WHOLE))
+      (assert-lambda-list-validity nil
+          (REQUIRED &whole WHOLE &optional OPTIONAL))
+      (assert-lambda-list-validity nil
+          (REQUIRED &whole WHOLE &optional OPTIONAL &rest REST))
+      (assert-lambda-list-validity nil
+          (REQUIRED &whole WHOLE &optional OPTIONAL &rest REST &key KEY))
+      (assert-lambda-list-validity nil
+          (REQUIRED &whole WHOLE &optional OPTIONAL &rest REST &key KEY &aux AUX)))
+    (progn ; after &optional
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &whole WHOLE))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &whole WHOLE &rest REST))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &whole WHOLE &rest REST &key KEY))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &whole WHOLE &rest REST &key KEY &aux AUX)))
+    (progn ; after &rest
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &whole WHOLE))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &whole WHOLE &key KEY))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &whole WHOLE &key KEY &aux AUX)))
+    (progn ; after &key
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &key KEY &whole WHOLE))
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &key KEY &whole WHOLE &aux AUX)))
+    (progn ; after &aux
+      (assert-lambda-list-validity nil
+          (REQUIRED &optional OPTIONAL &rest REST &key KEY &aux AUX &whole WHOLE))))
+  ;; &required -- there's no lambda-list keyword for required parameter
+  ;; &optional
+  (progn
+    (progn ; after &rest
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &optional OPTIONAL))
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &optional OPTIONAL &key KEY))
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &optional OPTIONAL &key KEY &aux AUX)))
+    (progn ; after &key
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &key KEY &optional OPTIONAL))
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &key KEY &optional OPTIONAL &aux)))
+    (progn ; after &aux
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &rest REST &key KEY &aux AUX &optional OPTIONAL))))
+  ;; &rest
+  (progn
+    (progn ; after &key
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &optional OPTIONAL &key KEY &rest REST))
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &optional OPTIONAL &key KEY &rest REST &aux AUX)))
+    (progn ; after &aux
+      (assert-lambda-list-validity nil
+          (&whole WHOLE REQUIRED &optional OPTIONAL &key KEY &aux AUX &rest REST))))
+  ;; &key
+  (progn ; after &aux
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &optional OPTIONAL &rest REST &aux AUX &key KEY)))
+  ;; &environment
+  (progn
+    (assert-lambda-list-validity nil
+        (&environment ENV &whole WHOLE REQUIRED &optional OPTIONAL &rest REST &aux AUX &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE &environment ENV REQUIRED &optional OPTIONAL &rest REST &aux AUX &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &environment ENV &optional OPTIONAL &rest REST &aux AUX &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &optional OPTIONAL &environment ENV &rest REST &aux AUX &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &optional OPTIONAL &rest REST &environment ENV &aux AUX &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &optional OPTIONAL &rest REST &aux AUX &environment ENV &key KEY))
+    (assert-lambda-list-validity nil
+        (&whole WHOLE REQUIRED &optional OPTIONAL &rest REST &aux AUX &key KEY &environment ENV))))
+
+;;; tests/destructuring-bind/invalid-lambda-list.lt ends here
