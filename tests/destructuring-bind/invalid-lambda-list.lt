@@ -209,6 +209,31 @@
 
 ;;; * &allow-other-keys
 
+(define-test &allow-other-keys--must-follow-&key
+  (assert-lambda-list-validity t (&key &allow-other-keys))
+  (progn
+    (assert-lambda-list-validity nil (&allow-other-keys))
+    (assert-lambda-list-validity nil (&allow-other-keys &key)))
+  (progn
+    (assert-lambda-list-validity t (&key a &allow-other-keys))
+    (assert-lambda-list-validity t (&key a b &allow-other-keys))
+    (assert-lambda-list-validity t (&key a b c &allow-other-keys)))
+  (progn
+    (assert-lambda-list-validity t (a &key b &allow-other-keys))
+    (assert-lambda-list-validity t (a &optional b &key c &allow-other-keys))
+    (assert-lambda-list-validity t (a &optional b &rest c &key d &allow-other-keys))
+    (assert-lambda-list-validity t (a &optional b &rest c &key d &allow-other-keys &aux e))))
+
+(define-test &allow-other-keys--no-parameters-allowed
+  (progn
+    (assert-lambda-list-validity nil (&key &allow-other-keys a))
+    (assert-lambda-list-validity nil (&key &allow-other-keys a b))
+    (assert-lambda-list-validity nil (&key &allow-other-keys a b c)))
+  (progn
+    (assert-lambda-list-validity nil (&key a &allow-other-keys b))
+    (assert-lambda-list-validity nil (&key a &allow-other-keys b c))
+    (assert-lambda-list-validity nil (&key a &allow-other-keys b c d))))
+
 ;;;;
 ;;;; * &aux
 
