@@ -133,6 +133,10 @@
 (defparameter *known-keywords* nil)
 (defparameter *allow-other-keys-p* nil)
 
+(defmacro %ASSERT-LAMBDA-LIST (&rest tests)
+  `(unless (and ,@tests)
+     (error 'invalid-lambda-list :datum *lambda-list*)))
+
 (defun parse-lambda-list (lambda-list form)
   (declare (type list lambda-list))
   (let* (;; for &whole
