@@ -80,7 +80,7 @@
 ;; that can be used, but included for checking presense and/or order of them with
 ;; `(member x ...)`. see `parse-lambda-list`.
 (defparameter +destructuring-lambda-list-keywords+
-  (list &environment &whole &required &optional &rest &key &allow-other-keys &aux))
+  (list &environment &whole &required &optional &body &rest &key &allow-other-keys &aux))
 
 (defun %assert-list-length (list min max)
   (declare (type list list)
