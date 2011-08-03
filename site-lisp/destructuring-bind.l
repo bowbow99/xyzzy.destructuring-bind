@@ -82,17 +82,17 @@
 (defparameter +destructuring-lambda-list-keywords+
   (list &environment &whole &required &optional &body &rest &key &allow-other-keys &aux))
 
-(defun %assert-list-length (list min max)
-  (declare (type list list)
-           (type (or integer (eql nil)) min max))
-  "Check LIST is a list with expected number of elements, and return the LIST as-is."
-  (unless (listp list)
-    (error 'type-error :datum list :expected-type 'list))
-  (unless (or (null min) (zerop min) (nthcdr (1- min) list))
-    (error 'too-few-arguments :datum list))
-  (unless (or (null max) (<= (list-length list) max))
-    (error 'too-many-arguments :datum list))
-  list)
+(defmacro %assert-list-length (list min max)
+  `(let ((#1=#:list ,list)
+         (#2=#:min ,min)
+         (#3=#:max ,max))
+     (unless (listp #1#)
+       (error 'type-error :datum #1# :expected-type 'list))
+     (unless (or (null #2#) (zerop #2#) (nthcdr (1- #2#) #1#))
+       (error 'too-few-arguments :datum #1#))
+     (unless (or (null #3#) (<= (list-length #1#) #3#))
+       (error 'too-many-arguments :datum #1#))
+     #1#))
 
 (defun %assert-keyword-list (keyword-list allowed-keywords allow-other-keys)
   "Check whether KEYWORD-LIST is proper or not, and return it as-is."
