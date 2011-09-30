@@ -1,5 +1,11 @@
+[xyzzy.ansify] に取り込まれました。今後はそっちでメンテされるのでこっちは放置になります。
+
+  [xyzzy.ansify]: http://github.com/bowbow99/xyzzy.ansify
+
 これは何
 ========
+ANSI Common Lisp の destructuring-bind。
+
 
 インストール
 ============
